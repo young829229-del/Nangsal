@@ -16,6 +16,7 @@ export interface SiteSettings {
   deliveryOutsideKtm: number;
   promoCode?: string;
   promoDiscountPercent?: number;
+  allowedAdminEmails?: string[];
 }
 
 export interface Product {

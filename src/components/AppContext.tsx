@@ -1,11 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Product, CartItem, CurrencyCode, CURRENCIES, SiteSettings } from "../types";
 import { PRODUCTS } from "../data";
+import { auth } from "../firebase";
+import { GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged } from "firebase/auth";
 
 export interface LocalUser {
   uid: string;
   email: string;
   displayName?: string;
+  photoURL?: string;
 }
 
 interface AppContextType {
@@ -67,7 +70,14 @@ const DEFAULT_SETTINGS: SiteSettings = {
   deliveryInsideKtm: 120,
   deliveryOutsideKtm: 200,
   promoCode: "",
-  promoDiscountPercent: 0
+  promoDiscountPercent: 0,
+  allowedAdminEmails: [
+    "young829229@gmail.com",
+    "sasukegurung77@gmail.com",
+    "comodevs@gmail.com",
+    "sahakash2007777@gmail.com",
+    "ghalanbinod4@gmail.com"
+  ]
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -174,6 +184,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [user]);
 
+  // Subscribe to Firebase Auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser && firebaseUser.email) {
+        const u: LocalUser = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email.toLowerCase(),
+          displayName: firebaseUser.displayName || firebaseUser.email.split("@")[0],
+          photoURL: firebaseUser.photoURL || undefined
+        };
+        setUser(u);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   const updateProduct = async (productId: string, updatedFields: Partial<Product>) => {
     setProducts((prev) => {
       const newList = prev.map((p) => (p.id === productId ? { ...p, ...updatedFields } : p));
@@ -235,8 +261,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const loginWithGoogle = async (): Promise<{ error?: string } | void> => {
-    return { error: "Google OAuth sign-in has been removed as requested. Please sign in using Operator Login or direct session." };
+  const loginWithGoogle = async (): Promise<{ error?: string; user?: LocalUser } | void> => {
+    setIsLoadingUser(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const result = await signInWithPopup(auth, provider);
+      const googleUser = result.user;
+      if (!googleUser || !googleUser.email) {
+        return { error: "Failed to retrieve email address from Google." };
+      }
+      const localU: LocalUser = {
+        uid: googleUser.uid,
+        email: googleUser.email.toLowerCase(),
+        displayName: googleUser.displayName || googleUser.email.split("@")[0],
+        photoURL: googleUser.photoURL || undefined
+      };
+      setUser(localU);
+      return { user: localU };
+    } catch (err: any) {
+      console.error("Google login error:", err);
+      if (err.code === "auth/popup-closed-by-user") {
+        return { error: "Google sign-in popup was closed before completing." };
+      }
+      if (err.code === "auth/configuration-not-found" || (err.message && err.message.includes("configuration-not-found"))) {
+        return { 
+          error: "Google Sign-In is not enabled in Firebase Console for project 'nangsal'. Enable Google Provider under Authentication > Sign-in method in Firebase Console, or use Direct Gmail Sign-in below." 
+        };
+      }
+      if (err.code === "auth/operation-not-allowed") {
+        return {
+          error: "Google Provider is disabled in Firebase Authentication settings. Please enable Google provider in Firebase Console."
+        };
+      }
+      return { error: err.message || "Failed to sign in with Google." };
+    } finally {
+      setIsLoadingUser(false);
+    }
   };
 
   const loginWithCustomToken = async (token: string): Promise<{ error?: string } | void> => {
@@ -258,12 +319,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const logout = async () => {
     try {
+      await firebaseSignOut(auth);
       setCart([]);
       setUserProfile(null);
       setUser(null);
       localStorage.removeItem("slimhood_cart");
       localStorage.removeItem("slimhood_guest_profile");
       localStorage.removeItem("nangsal_local_user");
+      sessionStorage.removeItem("nangsal_admin_logged_in");
       setActiveTab("HOME");
     } catch (error) {
       console.error("User logout failure:", error);

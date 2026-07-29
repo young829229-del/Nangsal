@@ -3,7 +3,6 @@ import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
-import nodemailer from "nodemailer";
 import { PRODUCTS } from "./src/data";
 
 dotenv.config();
@@ -52,47 +51,12 @@ app.post("/api/send-otp", async (req, res) => {
     return res.status(400).json({ error: "Missing email or code" });
   }
 
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
-
-  if (!user || !pass) {
-    console.log(`[LOCAL WAF SECURE DEV] OTP generated for ${email}: ${code}`);
-    return res.json({ 
-      success: true, 
-      isDevMode: true, 
-      code, 
-      message: "Logged to local console (SMTP config optional)" 
-    });
-  }
-
-  try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user, pass }
-    });
-
-    await transporter.sendMail({
-      from: `"Nangsal Apparel Security" <${user}>`,
-      to: email,
-      subject: "Your Nangsal Login Verification Code",
-      text: `Your login code is: ${code}\n\nUse this code to sign in to your account.`,
-      html: `
-        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fafafa; padding: 40px; text-align: center; color: #111;">
-          <h2 style="color: #000; letter-spacing: 2px; text-transform: uppercase;">NANGSAL APPAREL</h2>
-          <p style="color: #555; font-size: 14px; letter-spacing: 1px; margin-top: 20px;">YOUR LOGIN CODE IS</p>
-          <div style="background-color: #fff; padding: 20px 30px; font-size: 28px; font-weight: bold; letter-spacing: 8px; border: 1px solid #ddd; display: inline-block; margin: 20px 0; border-radius: 4px;">
-            ${code}
-          </div>
-          <p style="color: #888; font-size: 11px; letter-spacing: 1px;">PROTECTED BY NANGSAL SECURITY FIREWALL</p>
-        </div>
-      `
-    });
-
-    return res.json({ success: true, message: "Email sent" });
-  } catch (err: any) {
-    console.error("Error sending email:", err);
-    return res.status(500).json({ error: "Failed to send email" });
-  }
+  console.log(`[OTP VERIFICATION] Generated OTP for ${email}: ${code}`);
+  return res.json({ 
+    success: true, 
+    code, 
+    message: "Verification OTP generated successfully." 
+  });
 });
 
 app.post("/api/verify-otp", async (req, res) => {
