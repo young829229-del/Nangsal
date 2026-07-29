@@ -1,0 +1,8 @@
+{
+  "name": "Nangsal",
+  "description": "Minimalist e-commerce flagship and landing page for Nangsal Apparel luxury streetwear label.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

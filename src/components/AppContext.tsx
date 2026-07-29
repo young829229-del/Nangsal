@@ -1,0 +1,452 @@
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { Product, CartItem, CurrencyCode, CURRENCIES, SiteSettings } from "../types";
+import { PRODUCTS } from "../data";
+
+export interface LocalUser {
+  uid: string;
+  email: string;
+  displayName?: string;
+}
+
+interface AppContextType {
+  cart: CartItem[];
+  addToCart: (product: Product, size: string, qty: number, userHeight?: string, userWeight?: string) => void;
+  removeFromCart: (productId: string, size: string, userHeight?: string, userWeight?: string) => void;
+  updateCartQty: (productId: string, size: string, qty: number, userHeight?: string, userWeight?: string) => void;
+  clearCart: () => void;
+  currency: CurrencyCode;
+  setCurrency: (code: CurrencyCode) => void;
+  isCartOpen: boolean;
+  setIsCartOpen: (open: boolean) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  activeTab: "HOME" | "SHOP" | "TERMS" | "ADMIN" | "LOGIN";
+  setActiveTab: (tab: "HOME" | "SHOP" | "TERMS" | "ADMIN" | "LOGIN") => void;
+  selectedProductForModal: Product | null;
+  setSelectedProductForModal: (product: Product | null) => void;
+  formatPrice: (priceInNPR: number) => string;
+  selectedCategory: string;
+  setSelectedCategory: (category: string) => void;
+  
+  // User profile & auth variables
+  user: LocalUser | null;
+  isLoadingUser: boolean;
+  userProfile: { name: string; phone: string; address: string; email: string } | null;
+  loginWithGoogle: () => Promise<{ error?: string } | void>;
+  loginWithCustomToken: (token: string) => Promise<{ error?: string } | void>;
+  logout: () => Promise<void>;
+  updateProfileDetails: (name: string, phone: string, address: string, email?: string) => Promise<void>;
+  saveOrderToHistory: (name: string, phone: string, address: string, totalAmount: number, paymentScreenshotBase64?: string, itemsOverride?: any[]) => Promise<any>;
+  
+  // Dynamic products configuration
+  products: Product[];
+  updateProduct: (productId: string, updatedFields: Partial<Product>) => Promise<void>;
+  reorderProducts: (reorderedProducts: Product[]) => Promise<void>;
+  addProduct: (product: Omit<Product, "id">) => Promise<void>;
+  deleteProduct: (productId: string) => Promise<void>;
+
+  // Global settings
+  siteSettings: SiteSettings;
+  updateSiteSettings: (settings: Partial<SiteSettings>) => Promise<void>;
+}
+
+const AppContext = createContext<AppContextType | undefined>(undefined);
+
+const DEFAULT_SETTINGS: SiteSettings = {
+  heroImage: "https://i.ibb.co/BKQYptr5/IMG-3343.jpg",
+  aboutBrandImage: "https://i.ibb.co/sv0M73GB/IMG-3339.jpg",
+  aboutBrandVideo: "https://www.image2url.com/r2/default/videos/1785203915703-c3828fb3-47c3-4c99-bdf6-781f7f68f0a0.mp4",
+  bankQrImage: "https://i.ibb.co/ycQVc65Q/IMG-20260727-WA0003-2.jpg",
+  bankAccountName: "SUNIL GURUNG",
+  esewaQrImage: "https://i.ibb.co/nsLvH2ZX/IMG-20260727-WA0004-2.jpg",
+  esewaHolderName: "SUNIL GURUNG",
+  whatsappNumber: "+977 984-7459808",
+  instagramUrl: "https://www.instagram.com/by_nangsal?igsh=aWpldjB4anIwd3gz",
+  tiktokUrl: "https://www.tiktok.com/@nangsal_apparel?_r=1&_t=ZS-98PVmr7Eg2H",
+  targetDate: "2026-06-10T14:54:06Z",
+  deliveryInsideKtm: 120,
+  deliveryOutsideKtm: 200,
+  promoCode: "",
+  promoDiscountPercent: 0
+};
+
+export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Products initialized from localStorage or static PRODUCTS
+  const [products, setProducts] = useState<Product[]>(() => {
+    try {
+      const saved = localStorage.getItem("nangsal_products");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn("Could not load local products:", e);
+    }
+    return PRODUCTS;
+  });
+
+  // Site settings initialized from localStorage or default
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => {
+    try {
+      const saved = localStorage.getItem("nangsal_site_settings");
+      if (saved) {
+        return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+      }
+    } catch (e) {
+      console.warn("Could not load local settings:", e);
+    }
+    return DEFAULT_SETTINGS;
+  });
+
+  // Cart state
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem("slimhood_cart");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  // User auth state (Local state)
+  const [user, setUser] = useState<LocalUser | null>(() => {
+    try {
+      const saved = localStorage.getItem("nangsal_local_user");
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [isLoadingUser, setIsLoadingUser] = useState(false);
+  const [userProfile, setUserProfile] = useState<{ name: string; phone: string; address: string; email: string } | null>(() => {
+    try {
+      const saved = localStorage.getItem("slimhood_guest_profile");
+      return saved ? JSON.parse(saved) : { name: "", phone: "", address: "", email: "" };
+    } catch (e) {
+      return { name: "", phone: "", address: "", email: "" };
+    }
+  });
+
+  // Currency selection backed by localStorage
+  const [currency, setCurrencyState] = useState<CurrencyCode>(() => {
+    const saved = localStorage.getItem("slimhood_currency");
+    return (saved as CurrencyCode) || "NPR";
+  });
+
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTabState] = useState<"HOME" | "SHOP" | "TERMS" | "ADMIN" | "LOGIN">(() => {
+    const saved = sessionStorage.getItem("slimhood_active_tab");
+    return (saved as "HOME" | "SHOP" | "TERMS" | "ADMIN" | "LOGIN") || "HOME";
+  });
+
+  const setActiveTab = (tab: "HOME" | "SHOP" | "TERMS" | "ADMIN" | "LOGIN") => {
+    setActiveTabState(tab);
+    sessionStorage.setItem("slimhood_active_tab", tab);
+  };
+
+  const [selectedProductForModal, setSelectedProductForModal] = useState<Product | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
+
+  // Sync to localStorage
+  useEffect(() => {
+    localStorage.setItem("slimhood_cart", JSON.stringify(cart));
+  }, [cart]);
+
+  useEffect(() => {
+    localStorage.setItem("slimhood_currency", currency);
+  }, [currency]);
+
+  useEffect(() => {
+    localStorage.setItem("nangsal_products", JSON.stringify(products));
+  }, [products]);
+
+  useEffect(() => {
+    localStorage.setItem("nangsal_site_settings", JSON.stringify(siteSettings));
+  }, [siteSettings]);
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("nangsal_local_user", JSON.stringify(user));
+    } else {
+      localStorage.removeItem("nangsal_local_user");
+    }
+  }, [user]);
+
+  const updateProduct = async (productId: string, updatedFields: Partial<Product>) => {
+    setProducts((prev) => {
+      const newList = prev.map((p) => (p.id === productId ? { ...p, ...updatedFields } : p));
+      localStorage.setItem("nangsal_products", JSON.stringify(newList));
+      return newList;
+    });
+
+    // Also attempt server call if available
+    try {
+      const token = localStorage.getItem("nangsal_admin_token") || "nangsal_secure_admin_token_v1";
+      await fetch(`/api/admin/products/${productId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(updatedFields)
+      });
+    } catch (e) {
+      // Local fallback handled
+    }
+  };
+
+  const reorderProducts = async (reorderedProducts: Product[]) => {
+    const newProducts = reorderedProducts.map((p, index) => ({ ...p, order: index }));
+    setProducts(newProducts);
+    localStorage.setItem("nangsal_products", JSON.stringify(newProducts));
+  };
+
+  const addProduct = async (productObj: Omit<Product, "id">) => {
+    const newId = `prod_${Date.now()}`;
+    const newProduct: Product = { ...productObj, id: newId };
+    setProducts(prev => {
+      const updated = [newProduct, ...prev];
+      localStorage.setItem("nangsal_products", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const deleteProduct = async (productId: string) => {
+    setProducts(prev => {
+      const updated = prev.filter(p => p.id !== productId);
+      localStorage.setItem("nangsal_products", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const updateSiteSettings = async (settings: Partial<SiteSettings>) => {
+    setSiteSettings(prev => {
+      const updated = { ...prev, ...settings };
+      localStorage.setItem("nangsal_site_settings", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const setCurrency = (code: CurrencyCode) => {
+    if (CURRENCIES[code]) {
+      setCurrencyState(code);
+    }
+  };
+
+  const loginWithGoogle = async (): Promise<{ error?: string } | void> => {
+    return { error: "Google OAuth sign-in has been removed as requested. Please sign in using Operator Login or direct session." };
+  };
+
+  const loginWithCustomToken = async (token: string): Promise<{ error?: string } | void> => {
+    setIsLoadingUser(true);
+    try {
+      const localU: LocalUser = {
+        uid: `user_${Date.now()}`,
+        email: "admin@nangsal.com",
+        displayName: "Admin Operator"
+      };
+      setUser(localU);
+      return;
+    } catch (err: any) {
+      return { error: err.message };
+    } finally {
+      setIsLoadingUser(false);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      setCart([]);
+      setUserProfile(null);
+      setUser(null);
+      localStorage.removeItem("slimhood_cart");
+      localStorage.removeItem("slimhood_guest_profile");
+      localStorage.removeItem("nangsal_local_user");
+      setActiveTab("HOME");
+    } catch (error) {
+      console.error("User logout failure:", error);
+    }
+  };
+
+  const updateProfileDetails = async (name: string, phone: string, address: string, email: string = "") => {
+    const profile = {
+      name,
+      phone,
+      address,
+      email: email || userProfile?.email || ""
+    };
+    setUserProfile(profile);
+    localStorage.setItem("slimhood_guest_profile", JSON.stringify(profile));
+  };
+
+  const saveOrderToHistory = async (
+    name: string, 
+    phone: string, 
+    address: string, 
+    totalAmount: number, 
+    paymentScreenshotBase64?: string, 
+    itemsOverride?: any[]
+  ) => {
+    const orderId = `ord_${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const serializedItems = itemsOverride || cart.map(item => ({
+      productId: item.product.id,
+      name: item.product.name,
+      selectedSize: item.selectedSize,
+      quantity: item.quantity,
+      price: item.product.price,
+      heightWeight: item.heightWeight || false
+    }));
+
+    const newOrder: any = {
+      id: orderId,
+      name,
+      phone,
+      address,
+      totalAmount,
+      items: serializedItems,
+      status: "PENDING",
+      createdAt: new Date().toISOString(),
+      paymentScreenshotBase64: paymentScreenshotBase64 || null
+    };
+
+    if (user) {
+      newOrder.userId = user.uid;
+    }
+
+    // Save locally
+    try {
+      const guestOrders = JSON.parse(localStorage.getItem("slimhood_guest_orders") || "[]");
+      guestOrders.push(newOrder);
+      localStorage.setItem("slimhood_guest_orders", JSON.stringify(guestOrders));
+    } catch (err) {
+      console.error("Failed to save order locally:", err);
+    }
+
+    // Post to local server endpoint
+    try {
+      await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, orderData: newOrder })
+      });
+    } catch (e) {
+      // Local fallback handled
+    }
+
+    // Decrement stock locally for ordered items
+    for (const item of serializedItems) {
+      setProducts(prev => prev.map(p => {
+        if (p.id === item.productId && p.stock !== undefined) {
+          return { ...p, stock: Math.max(0, p.stock - item.quantity) };
+        }
+        return p;
+      }));
+    }
+
+    return orderId;
+  };
+
+  const addToCart = async (product: Product, size: string, qty: number, userHeight?: string, userWeight?: string) => {
+    if (product.isSoldOut) return;
+
+    setCart((prev) => {
+      const existingIdx = prev.findIndex(
+        (item) => item.product.id === product.id && item.selectedSize === size && item.userHeight === userHeight && item.userWeight === userWeight
+      );
+      if (existingIdx > -1) {
+        const next = [...prev];
+        next[existingIdx].quantity += qty;
+        return next;
+      } else {
+        return [...prev, { product, selectedSize: size, quantity: qty, userHeight, userWeight }];
+      }
+    });
+
+    setIsCartOpen(true);
+  };
+
+  const removeFromCart = async (productId: string, size: string, userHeight?: string, userWeight?: string) => {
+    setCart((prev) => prev.filter((item) => !(item.product.id === productId && item.selectedSize === size && item.userHeight === userHeight && item.userWeight === userWeight)));
+  };
+
+  const updateCartQty = async (productId: string, size: string, qty: number, userHeight?: string, userWeight?: string) => {
+    if (qty <= 0) {
+      await removeFromCart(productId, size, userHeight, userWeight);
+      return;
+    }
+    setCart((prev) =>
+      prev.map((item) =>
+        item.product.id === productId && item.selectedSize === size && item.userHeight === userHeight && item.userWeight === userWeight
+          ? { ...item, quantity: qty }
+          : item
+      )
+    );
+  };
+
+  const clearCart = async () => {
+    setCart([]);
+  };
+
+  const formatPrice = (priceInNPR: number): string => {
+    const config = CURRENCIES[currency];
+    const converted = priceInNPR * (config.rate / CURRENCIES["NPR"].rate);
+    
+    if (config.code === "NPR") {
+      return `Rs. ${converted.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    return `${converted.toFixed(2)} ${config.code}`;
+  };
+
+  return (
+    <AppContext.Provider
+      value={{
+        cart,
+        addToCart,
+        removeFromCart,
+        updateCartQty,
+        clearCart,
+        currency,
+        setCurrency,
+        isCartOpen,
+        setIsCartOpen,
+        searchQuery,
+        setSearchQuery,
+        activeTab,
+        setActiveTab,
+        selectedProductForModal,
+        setSelectedProductForModal,
+        formatPrice,
+        selectedCategory,
+        setSelectedCategory,
+        user,
+        isLoadingUser,
+        userProfile,
+        loginWithGoogle,
+        loginWithCustomToken,
+        logout,
+        updateProfileDetails,
+        saveOrderToHistory,
+        products,
+        updateProduct,
+        reorderProducts,
+        addProduct,
+        deleteProduct,
+        siteSettings,
+        updateSiteSettings
+      }}
+    >
+      {children}
+    </AppContext.Provider>
+  );
+};
+
+export const useApp = () => {
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error("useApp must be used within an AppProvider");
+  }
+  return context;
+};
