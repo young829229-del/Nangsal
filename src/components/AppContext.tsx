@@ -39,7 +39,18 @@ interface AppContextType {
   loginWithCustomToken: (token: string) => Promise<{ error?: string } | void>;
   logout: () => Promise<void>;
   updateProfileDetails: (name: string, phone: string, address: string, email?: string) => Promise<void>;
-  saveOrderToHistory: (name: string, phone: string, address: string, totalAmount: number, paymentScreenshotBase64?: string, itemsOverride?: any[]) => Promise<any>;
+  saveOrderToHistory: (
+    name: string, 
+    phone: string, 
+    address: string, 
+    totalAmount: number, 
+    paymentScreenshotBase64?: string, 
+    itemsOverride?: any[],
+    paymentMethod?: string,
+    deliveryCharge?: number,
+    subtotal?: number,
+    city?: string
+  ) => Promise<any>;
   
   // Dynamic products configuration
   products: Product[];
@@ -87,7 +98,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const saved = localStorage.getItem("nangsal_products");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Merge static PRODUCTS updates (such as updated image URLs) into cached products
+          return parsed.map((p: Product) => {
+            const staticMatch = PRODUCTS.find((sp) => sp.id === p.id);
+            if (staticMatch) {
+              return { ...p, images: staticMatch.images };
+            }
+            return p;
+          });
+        }
       }
     } catch (e) {
       console.warn("Could not load local products:", e);
@@ -284,6 +304,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (err.code === "auth/popup-closed-by-user") {
         return { error: "Google sign-in popup was closed before completing." };
       }
+      if (err.code === "auth/unauthorized-domain" || (err.message && err.message.includes("unauthorized-domain"))) {
+        return {
+          error: "This app's preview domain is not listed in Firebase Console Authorized Domains. Please enter your authorized admin Gmail directly below to sign in."
+        };
+      }
       if (err.code === "auth/configuration-not-found" || (err.message && err.message.includes("configuration-not-found"))) {
         return { 
           error: "Google Sign-In is not enabled in Firebase Console for project 'nangsal'. Enable Google Provider under Authentication > Sign-in method in Firebase Console, or use Direct Gmail Sign-in below." 
@@ -350,24 +375,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     address: string, 
     totalAmount: number, 
     paymentScreenshotBase64?: string, 
-    itemsOverride?: any[]
+    itemsOverride?: any[],
+    paymentMethod: string = "esewa",
+    deliveryCharge: number = 0,
+    subtotal?: number,
+    city: string = ""
   ) => {
     const orderId = `ord_${Math.floor(100000 + Math.random() * 900000)}`;
 
-    const serializedItems = itemsOverride || cart.map(item => ({
-      productId: item.product.id,
-      name: item.product.name,
-      selectedSize: item.selectedSize,
-      quantity: item.quantity,
-      price: item.product.price,
-      heightWeight: item.heightWeight || false
-    }));
+    const serializedItems = itemsOverride || cart.map(item => {
+      let finalSize = item.selectedSize || "";
+      const hasHW = Boolean(item.userHeight || item.userWeight);
+      if (hasHW) {
+        const hwText = `(HT: ${item.userHeight || '-'}, WT: ${item.userWeight || '-'})`;
+        if (!finalSize || finalSize === "N/A" || finalSize.toUpperCase() === "CUSTOM") {
+          finalSize = `CUSTOM ${hwText}`;
+        } else if (!finalSize.includes(item.userHeight || "") && !finalSize.includes(item.userWeight || "")) {
+          finalSize = `${finalSize} ${hwText}`;
+        }
+      } else if (!finalSize) {
+        finalSize = "STANDARD";
+      }
+
+      return {
+        productId: item.product.id,
+        name: item.product.name,
+        selectedSize: finalSize,
+        quantity: item.quantity,
+        price: item.product.price,
+        userHeight: item.userHeight || null,
+        userWeight: item.userWeight || null,
+        image: item.product.images?.[0] || ""
+      };
+    });
 
     const newOrder: any = {
       id: orderId,
       name,
       phone,
       address,
+      city: city || "",
+      paymentMethod,
+      deliveryCharge,
+      subtotal: subtotal || totalAmount,
       totalAmount,
       items: serializedItems,
       status: "PENDING",

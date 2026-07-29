@@ -3,7 +3,7 @@ import { useApp } from "./AppContext";
 import { 
   Lock, Unlock, Plus, Trash2, Image as ImageIcon, Tag, Undo, LogIn, LogOut, 
   Settings, User, CheckCircle2, AlertCircle, Calendar, DollarSign, MapPin, 
-  Phone, RefreshCw, Layers, Eye, Mail, Key, Save, ChevronDown, ChevronUp, ShieldCheck
+  Phone, RefreshCw, Layers, Eye, Mail, Key, Save, ChevronDown, ChevronUp, ShieldCheck, X
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
@@ -34,6 +34,7 @@ export const AdminPanel: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<"PRODUCTS" | "ORDERS" | "SETTINGS">("PRODUCTS");
   const [orderDateFilter, setOrderDateFilter] = useState<"today" | "3days" | "7days" | "1month" | "lifetime">("lifetime");
   const [expandedOrders, setExpandedOrders] = useState<string[]>([]);
+  const [selectedScreenshotModal, setSelectedScreenshotModal] = useState<string | null>(null);
   const [adminAuthError, setAdminAuthError] = useState<string>("");
   const [googleLoginError, setGoogleLoginError] = useState<string>("");
   const [isLoggingInGoogle, setIsLoggingInGoogle] = useState<boolean>(false);
@@ -100,14 +101,40 @@ export const AdminPanel: React.FC = () => {
       else setIsRefreshingOrders(true);
 
       setOrdersError(null);
+      let localList: any[] = [];
       const saved = localStorage.getItem("slimhood_guest_orders");
       if (saved) {
-        const parsed = JSON.parse(saved);
-        parsed.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setOrders(parsed);
-      } else {
-        setOrders([]);
+        try {
+          localList = JSON.parse(saved);
+        } catch (e) {}
       }
+
+      // Try fetching server orders as well
+      try {
+        const res = await fetch("/api/admin/orders", {
+          headers: {
+            "Authorization": "Bearer nangsal_secure_admin_token_v1"
+          }
+        });
+        if (res.ok) {
+          const serverOrders = await res.json();
+          if (Array.isArray(serverOrders)) {
+            const orderMap = new Map();
+            localList.forEach(o => { if (o && o.id) orderMap.set(o.id, o); });
+            serverOrders.forEach(o => {
+              if (o && o.id) {
+                orderMap.set(o.id, { ...orderMap.get(o.id), ...o });
+              }
+            });
+            localList = Array.from(orderMap.values());
+          }
+        }
+      } catch (e) {
+        // Fallback to local
+      }
+
+      localList.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      setOrders(localList);
     } catch (error: any) {
       console.error("Failed to query backend orders ledger:", error);
       setOrdersError(error.message);
@@ -544,9 +571,9 @@ export const AdminPanel: React.FC = () => {
             {googleLoginError && (
               <div className="text-[10px] font-mono text-red-600 bg-red-50 border border-red-200 p-3 rounded-lg text-center leading-relaxed">
                 <p className="font-bold uppercase mb-1">{googleLoginError}</p>
-                {googleLoginError.includes("configuration-not-found") && (
-                  <p className="text-[9px] text-neutral-600 normal-case">
-                    Tip: If Google Auth is not enabled in Firebase Console, enter your authorized admin Gmail address below to access the terminal directly.
+                {(googleLoginError.includes("unauthorized-domain") || googleLoginError.includes("configuration-not-found") || googleLoginError.includes("domain")) && (
+                  <p className="text-[9px] text-neutral-600 normal-case mt-1">
+                    Tip: You can log in directly by entering your authorized Gmail address (<span className="font-mono font-bold">young829229@gmail.com</span> or <span className="font-mono font-bold">sasukegurung77@gmail.com</span>) in the field below, or add this domain in Firebase Console under Authentication &gt; Settings &gt; Authorized Domains.
                   </p>
                 )}
               </div>
@@ -943,11 +970,22 @@ export const AdminPanel: React.FC = () => {
                     {!isExpanded ? (
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-6 sm:mt-2 pr-2 sm:pr-24">
                         <div className="space-y-1">
-                          <p className="text-sm font-mono font-black text-black uppercase leading-none">
-                            {order.name}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-mono font-black text-black uppercase leading-none">
+                              {order.name}
+                            </p>
+                            {order.paymentMethod && (
+                              <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border uppercase ${
+                                order.paymentMethod === "esewa" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                                order.paymentMethod === "bank" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                "bg-amber-50 text-amber-700 border-amber-200"
+                              }`}>
+                                {order.paymentMethod === "esewa" ? "eSEWA" : order.paymentMethod === "bank" ? "BANK" : "COD"}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[10px] font-mono text-neutral-500 uppercase">
-                            {dateString} • {order.items?.length || 0} ITEM(S)
+                            {dateString} • {order.items?.length || 0} ITEM(S) • {order.phone}
                           </p>
                         </div>
                         <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
@@ -974,119 +1012,238 @@ export const AdminPanel: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-8 sm:mt-4">
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8 sm:mt-4">
                         
-                        {/* Segment 1: Delivery detail parameters */}
-                        <div className="space-y-3 lg:border-r border-neutral-100 lg:pr-4">
-                          <div className="flex items-center gap-1.5 text-[10px] font-mono text-neutral-400 uppercase">
-                            <User size={12} />
-                            <span>CUSTOMER INF_MATION</span>
-                          </div>
-                        <div className="space-y-2">
-                          <p className="text-sm font-mono font-black text-black uppercase leading-none">
-                            {order.name}
-                          </p>
-                          <p className="text-xs font-mono text-neutral-600 flex items-center gap-1.5">
-                            <Phone size={12} className="text-neutral-400" />
-                            {order.phone}
-                          </p>
-                          <p className="text-xs font-mono text-neutral-600 flex items-center gap-1.5 leading-relaxed">
-                            <MapPin size={12} className="text-neutral-400 shrink-0" />
-                            <span className="uppercase text-left">{order.address}</span>
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Segment 2: Bought items details list */}
-                      <div className="space-y-3 lg:border-r border-neutral-100 lg:px-4">
-                        <div className="flex items-center gap-1.5 text-[10px] font-mono text-neutral-400 uppercase">
-                          <Layers size={12} />
-                          <span>ITEMS ORDERED ({order.items?.length || 0})</span>
-                        </div>
-
-                        <ul className="space-y-2.5">
-                          {order.items?.map((item: any, itemIdx: number) => (
-                            <li key={itemIdx} className="flex justify-between items-start text-xs font-mono">
-                              <div className="space-y-0.5 text-left">
-                                <span className="font-extrabold uppercase text-neutral-800 line-clamp-1 block">
-                                  {item.name}
-                                </span>
-                                <span className="text-[10px] text-neutral-500 uppercase">
-                                  SIZE: {item.selectedSize || "N/A"} {"•"} QTY: {item.quantity}
-                                </span>
-                              </div>
-                              <span className="font-bold text-neutral-700 shrink-0">
-                                {formatPrice(item.price * item.quantity)}
+                        {/* Column 1: CUSTOMER & PLACE/LOCATION DETAILS */}
+                        <div className="space-y-3 lg:border-r border-neutral-200 lg:pr-5">
+                          <div className="flex items-center justify-between text-[10px] font-mono text-neutral-500 font-extrabold uppercase pb-1 border-b border-neutral-100">
+                            <span className="flex items-center gap-1.5"><User size={12} /> CUSTOMER & PLACE DETAILS</span>
+                            {order.city && (
+                              <span className="bg-neutral-100 text-black px-1.5 py-0.5 rounded text-[9px]">
+                                {order.city}
                               </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      {/* Segment 3: Totals, Dates, and confirmation status */}
-                      <div className="space-y-4 lg:pl-4 flex flex-col justify-between">
-                        <div className="space-y-2.5">
-                          <div className="flex items-center gap-1.5 text-[10px] font-mono text-neutral-400 uppercase">
-                            <Calendar size={12} />
-                            <span>RECORDED_AT</span>
+                            )}
                           </div>
-                          <p className="text-xs font-mono text-neutral-700 uppercase">
-                            {dateString}
-                          </p>
-                        </div>
 
-                        <div className="space-y-1 bg-[#fbfbfb] p-3 border border-neutral-100 rounded-lg">
-                          <p className="text-[10px] font-mono text-neutral-400 uppercase tracking-widest leading-none">
-                            NET SECURED TOTAL
-                          </p>
-                          <p className="text-base font-mono font-black text-neutral-900 leading-none">
-                            {formatPrice(order.totalAmount)}
-                          </p>
-                        </div>
-                        
-                        <div className="space-y-1 border-t border-neutral-100 pt-3">
-                          <p className="text-[10px] font-mono text-neutral-400 uppercase tracking-widest leading-none mb-1">
-                            ORDER STATUS
-                          </p>
-                          <select
-                            value={order.status || "PENDING"}
-                            disabled={updatingOrderId === order.id}
-                            onChange={(e) => updateOrderStatus(order.id, e.target.value)}
-                            className="w-full bg-white border border-neutral-200 text-xs font-mono uppercase px-2 py-1.5 rounded disabled:opacity-50"
-                          >
-                            <option value="PENDING">PENDING</option>
-                            <option value="PROCESSING">PROCESSING</option>
-                            <option value="SHIPPED">SHIPPED</option>
-                            <option value="DELIVERED">DELIVERED</option>
-                            <option value="CANCELLED">CANCELLED</option>
-                          </select>
-                        </div>
-
-                        {(order.paymentScreenshotUrl || order.paymentScreenshotBase64) && (
-                          <div className="flex flex-col gap-2 text-xs font-mono border-t border-neutral-100 pt-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-emerald-600 font-bold flex items-center gap-1 uppercase">
-                                <CheckCircle2 size={14} /> PAYMENT SCREENSHOT
-                              </span>
-                              <a 
-                                href={order.paymentScreenshotUrl || order.paymentScreenshotBase64} 
-                                target="_blank" 
-                                rel="noreferrer"
-                                className="bg-neutral-100 text-black px-2 py-1 rounded hover:bg-neutral-200 uppercase font-bold text-[10px]"
-                              >
-                                FULL SCREEN
-                              </a>
+                          <div className="space-y-2 bg-neutral-50 p-3 rounded-lg border border-neutral-150">
+                            <div>
+                              <span className="text-[9px] font-mono text-neutral-400 uppercase block font-bold">FULL NAME</span>
+                              <p className="text-sm font-mono font-black text-black uppercase leading-tight">
+                                {order.name}
+                              </p>
                             </div>
-                            <img 
-                              src={order.paymentScreenshotUrl || order.paymentScreenshotBase64} 
-                              alt="Payment Screenshot" 
-                              className="w-full max-w-[200px] max-h-[300px] object-contain border border-neutral-200 rounded mt-2 bg-white"
-                            />
-                          </div>
-                        )}
-                      </div>
 
-                    </div>
+                            <div>
+                              <span className="text-[9px] font-mono text-neutral-400 uppercase block font-bold">PHONE NUMBER</span>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <p className="text-xs font-mono font-bold text-black flex items-center gap-1">
+                                  <Phone size={12} className="text-neutral-500" />
+                                  {order.phone}
+                                </p>
+                                <a 
+                                  href={`https://wa.me/${order.phone?.replace(/[^0-9]/g, "")}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[9px] font-mono font-bold bg-[#25D366] text-white px-2 py-0.5 rounded hover:bg-emerald-600 transition-colors uppercase inline-flex items-center gap-1"
+                                >
+                                  WhatsApp
+                                </a>
+                                <a 
+                                  href={`tel:${order.phone}`}
+                                  className="text-[9px] font-mono font-bold bg-black text-white px-2 py-0.5 rounded hover:bg-neutral-800 transition-colors uppercase"
+                                >
+                                  Call
+                                </a>
+                              </div>
+                            </div>
+
+                            <div>
+                              <span className="text-[9px] font-mono text-neutral-400 uppercase block font-bold">DELIVERY ADDRESS & PLACE DETAILS</span>
+                              <p className="text-xs font-mono text-neutral-800 uppercase font-semibold mt-0.5 leading-relaxed bg-white p-2 border border-neutral-200 rounded">
+                                {order.address || "NO ADDRESS SPECIFIED"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Column 2: ORDERED ITEMS & CUSTOM SIZING */}
+                        <div className="space-y-3 lg:border-r border-neutral-200 lg:px-5">
+                          <div className="flex items-center justify-between text-[10px] font-mono text-neutral-500 font-extrabold uppercase pb-1 border-b border-neutral-100">
+                            <span className="flex items-center gap-1.5"><Layers size={12} /> ITEMS ({order.items?.length || 0})</span>
+                            <span className="text-[9px] text-neutral-400">CUSTOM SIZES LISTED</span>
+                          </div>
+
+                          <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                            {order.items?.map((item: any, itemIdx: number) => {
+                              const hasHW = Boolean(item.userHeight || item.userWeight);
+                              const isCustom = item.selectedSize?.toUpperCase().includes("CUSTOM") || hasHW;
+                              
+                              let displaySize = item.selectedSize || "";
+                              if (hasHW && !displaySize.includes(item.userHeight || "") && !displaySize.includes(item.userWeight || "")) {
+                                const hwText = `(HT: ${item.userHeight || '-'}, WT: ${item.userWeight || '-'})`;
+                                if (!displaySize || displaySize === "N/A" || displaySize.toUpperCase() === "CUSTOM") {
+                                  displaySize = `CUSTOM ${hwText}`;
+                                } else {
+                                  displaySize = `${displaySize} ${hwText}`;
+                                }
+                              }
+                              if (!displaySize) displaySize = "N/A";
+
+                              return (
+                                <div key={itemIdx} className="bg-neutral-50 p-3 rounded-lg border border-neutral-150 space-y-2">
+                                  <div className="flex items-start gap-3">
+                                    {item.image && (
+                                      <div 
+                                        onClick={() => setSelectedScreenshotModal(item.image)}
+                                        className="w-12 h-14 bg-white border border-neutral-200 rounded p-1 flex items-center justify-center shrink-0 cursor-pointer hover:border-black transition-colors relative group"
+                                        title="Click to view full image"
+                                      >
+                                        <img src={item.image} alt={item.name} className="max-h-full max-w-full object-contain" />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[8px] font-mono font-bold text-white uppercase rounded">
+                                          VIEW
+                                        </div>
+                                      </div>
+                                    )}
+                                    <div className="flex-1 min-w-0 text-left">
+                                      <p className="text-xs font-mono font-bold text-black uppercase truncate">
+                                        {item.name}
+                                      </p>
+                                      <p className="text-[10px] font-mono text-neutral-500 uppercase mt-0.5">
+                                        QTY: {item.quantity} × {formatPrice(item.price)}
+                                      </p>
+                                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                        <span className={`text-[9px] font-mono font-black px-2 py-0.5 rounded border uppercase ${
+                                          isCustom ? "bg-amber-100 text-amber-900 border-amber-300 font-bold" : "bg-white text-black border-neutral-200"
+                                        }`}>
+                                          SIZE: {displaySize}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <span className="text-xs font-mono font-extrabold text-black shrink-0">
+                                      {formatPrice(item.price * item.quantity)}
+                                    </span>
+                                  </div>
+
+                                  {/* Custom Height & Weight Measurement Box */}
+                                  {(hasHW || isCustom) && (
+                                    <div className="bg-amber-50/90 border border-amber-300 p-2.5 rounded-md text-[10px] font-mono text-amber-950 uppercase font-black flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 shadow-xs">
+                                      <span className="flex items-center gap-1.5 text-amber-900 font-extrabold">
+                                        📐 CUSTOM SIZE MEASUREMENTS:
+                                      </span>
+                                      <span className="bg-amber-200/80 px-2 py-0.5 rounded text-[10px] text-amber-950 font-black tracking-wide">
+                                        {item.userHeight ? `HEIGHT: ${item.userHeight}` : "HEIGHT: NOT SPECIFIED"} • {item.userWeight ? `WEIGHT: ${item.userWeight}` : "WEIGHT: NOT SPECIFIED"}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Column 3: PAYMENT & SCREENSHOT VERIFICATION */}
+                        <div className="space-y-3 lg:pl-5 flex flex-col justify-between">
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between text-[10px] font-mono text-neutral-500 font-extrabold uppercase pb-1 border-b border-neutral-100">
+                              <span className="flex items-center gap-1.5"><Calendar size={12} /> PAYMENT & BREAKDOWN</span>
+                              <span className="text-[9px] text-neutral-400">{dateString}</span>
+                            </div>
+
+                            {/* Payment Method Badge */}
+                            <div className="flex items-center justify-between bg-neutral-900 text-white p-2.5 rounded-lg">
+                              <span className="text-[10px] font-mono uppercase text-gray-300 font-bold">METHOD:</span>
+                              <span className="text-xs font-mono font-black uppercase text-emerald-400 tracking-wider">
+                                {order.paymentMethod === "esewa" ? "eSEWA QR" : order.paymentMethod === "bank" ? "BANK TRANSFER QR" : "CASH ON DELIVERY (COD)"}
+                              </span>
+                            </div>
+
+                            {/* Financial Breakdown */}
+                            <div className="bg-neutral-50 p-3 rounded-lg border border-neutral-150 space-y-1.5 text-xs font-mono">
+                              {order.subtotal && (
+                                <div className="flex justify-between text-neutral-600 text-[10px]">
+                                  <span>ITEMS SUBTOTAL:</span>
+                                  <span className="font-bold">{formatPrice(order.subtotal)}</span>
+                                </div>
+                              )}
+                              {order.deliveryCharge !== undefined && (
+                                <div className="flex justify-between text-neutral-600 text-[10px]">
+                                  <span>DELIVERY CHARGE:</span>
+                                  <span className="font-bold">{formatPrice(order.deliveryCharge)}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between text-black font-black text-sm pt-1.5 border-t border-neutral-200">
+                                <span>TOTAL AMOUNT:</span>
+                                <span className="text-emerald-700">{formatPrice(order.totalAmount)}</span>
+                              </div>
+
+                              {order.paymentMethod === "cod" && (
+                                <div className="mt-2 bg-yellow-50 border border-yellow-200 p-2 rounded text-[10px] text-yellow-900 font-bold uppercase space-y-1">
+                                  <p className="text-emerald-700">✓ ADVANCE DELIVERY FEE PAID: {formatPrice(order.deliveryCharge || 120)}</p>
+                                  <p className="text-black">💵 CASH TO COLLECT ON DELIVERY: {formatPrice((order.subtotal || order.totalAmount - (order.deliveryCharge || 0)))}</p>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Payment Screenshot (SS) Viewer */}
+                            {(() => {
+                              const paymentSS = order.paymentScreenshotUrl || order.paymentScreenshotBase64 || order.paymentScreenshot;
+                              if (paymentSS) {
+                                return (
+                                  <div className="bg-neutral-50 p-3 rounded-lg border border-neutral-200 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[10px] font-mono font-black text-emerald-700 flex items-center gap-1 uppercase">
+                                        <CheckCircle2 size={13} /> PAYMENT SCREENSHOT (SS)
+                                      </span>
+                                      <button
+                                        onClick={() => setSelectedScreenshotModal(paymentSS)}
+                                        className="bg-black hover:bg-neutral-800 text-white px-2.5 py-1 rounded text-[9px] font-mono font-bold uppercase cursor-pointer transition-colors shadow-xs"
+                                      >
+                                        ENLARGE SS
+                                      </button>
+                                    </div>
+                                    <div 
+                                      onClick={() => setSelectedScreenshotModal(paymentSS)}
+                                      className="w-full h-36 bg-white border border-neutral-200 rounded flex items-center justify-center overflow-hidden cursor-pointer group relative hover:border-black transition-colors"
+                                    >
+                                      <img 
+                                        src={paymentSS} 
+                                        alt="Payment Screenshot" 
+                                        className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform"
+                                      />
+                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-mono font-bold uppercase gap-1">
+                                        <span>🔍 CLICK FOR FULL SIZE</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <div className="bg-neutral-100 p-3 rounded border border-neutral-200 text-center text-[10px] font-mono text-neutral-500 uppercase">
+                                    NO PAYMENT SCREENSHOT ATTACHED
+                                  </div>
+                                );
+                              }
+                            })()}
+                          </div>
+
+                          <div className="space-y-1.5 border-t border-neutral-200 pt-3 mt-3">
+                            <span className="text-[10px] font-mono font-bold text-neutral-500 uppercase block">UPDATE ORDER STATUS</span>
+                            <select
+                              value={order.status || "PENDING"}
+                              disabled={updatingOrderId === order.id}
+                              onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                              className="w-full bg-white border border-neutral-300 text-xs font-mono font-bold uppercase px-3 py-2 rounded-lg cursor-pointer focus:outline-none focus:border-black"
+                            >
+                              <option value="PENDING">PENDING</option>
+                              <option value="PROCESSING">PROCESSING</option>
+                              <option value="SHIPPED">SHIPPED</option>
+                              <option value="DELIVERED">DELIVERED</option>
+                              <option value="CANCELLED">CANCELLED</option>
+                            </select>
+                          </div>
+                        </div>
+
+                      </div>
                     )}
                   </div>
                 );
@@ -1713,6 +1870,60 @@ export const AdminPanel: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Full-Screen Payment Screenshot & Image Modal */}
+      {selectedScreenshotModal && (
+        <div 
+          onClick={() => setSelectedScreenshotModal(null)}
+          className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-4xl max-h-[90vh] w-full bg-neutral-900 border border-neutral-700 rounded-xl p-4 flex flex-col items-center shadow-2xl cursor-default"
+          >
+            <div className="w-full flex items-center justify-between pb-3 border-b border-neutral-800 text-white font-mono text-xs font-bold uppercase mb-3">
+              <span className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-emerald-400" />
+                VERIFY IMAGE / PAYMENT SCREENSHOT (SS)
+              </span>
+              <button 
+                onClick={() => setSelectedScreenshotModal(null)}
+                className="bg-neutral-800 hover:bg-neutral-700 text-white p-1.5 rounded cursor-pointer transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto flex items-center justify-center max-h-[72vh] w-full bg-black/60 p-2 rounded border border-neutral-800">
+              <img 
+                src={selectedScreenshotModal} 
+                alt="Enlarged Payment Screenshot" 
+                className="max-h-full max-w-full object-contain rounded shadow-lg"
+              />
+            </div>
+            <div className="w-full pt-3 mt-2 border-t border-neutral-800 flex items-center justify-between font-mono text-xs">
+              <span className="text-[10px] text-neutral-400 uppercase hidden sm:inline">
+                Click anywhere outside or hit Close to exit
+              </span>
+              <div className="flex items-center gap-3 ml-auto">
+                <a
+                  href={selectedScreenshotModal}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded font-bold uppercase transition-colors flex items-center gap-1.5"
+                >
+                  OPEN ORIGINAL IN NEW TAB
+                </a>
+                <button
+                  onClick={() => setSelectedScreenshotModal(null)}
+                  className="bg-neutral-800 hover:bg-neutral-700 text-white px-4 py-2 rounded font-bold uppercase transition-colors cursor-pointer"
+                >
+                  CLOSE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

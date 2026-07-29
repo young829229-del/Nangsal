@@ -13,11 +13,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isDragging = 
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
 
-  // Handle dot slide hover swap
-  const handleDotHover = (idx: number) => {
-    setCurrentImageIdx(idx);
-  };
-
   const handleCardClick = () => {
     setSelectedProductForModal(product);
   };
@@ -69,7 +64,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isDragging = 
         )}
       </div>
 
-      {/* Control Layer (Between frame and info): Paginations dots or Sizes list on Hover */}
+      {/* Control Layer (Between frame and info): Sizes list on Hover */}
       <div id={`product-dots-row-${product.id}`} className="py-2 px-1 flex flex-col items-center justify-center min-h-[42px] sm:min-h-[46px] w-full relative">
         <div className="flex flex-col items-center gap-2 transition-all duration-300 w-full">
           {(!product.isSoldOut && product.stock !== 0) && isHovered && product.sizes.length > 0 && product.sizes[0] !== "ONE SIZE" ? (
@@ -109,49 +104,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isDragging = 
                   );
                 })}
               </div>
-
-              {/* Dots stacked below sizes on hover */}
-              {product.images.length > 1 && (
-                <div className="flex items-center gap-1.5 pb-0.5">
-                  {product.images.map((_, idx) => (
-                    <button
-                      key={idx}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCurrentImageIdx(idx);
-                      }}
-                      onMouseEnter={() => handleDotHover(idx)}
-                      className={`w-1.5 h-1.5 rounded-full transition-all cursor-pointer ${
-                        currentImageIdx === idx ? "bg-black scale-110" : "bg-neutral-200 hover:bg-neutral-400"
-                      }`}
-                      aria-label={`View image variant ${idx + 1}`}
-                    />
-                  ))}
-                </div>
-              )}
             </motion.div>
           ) : (
-            /* Idle / Standard state: dots Row (only if multiple images) */
-            product.images.length > 1 ? (
-              <div className="flex items-center gap-1.5 h-[30px] sm:h-[34px]">
-                {product.images.map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCurrentImageIdx(idx);
-                    }}
-                    onMouseEnter={() => handleDotHover(idx)}
-                    className={`w-1.5 h-1.5 rounded-full transition-all cursor-pointer ${
-                      currentImageIdx === idx ? "bg-black scale-110 animate-pulse" : "bg-neutral-200 hover:bg-neutral-400"
-                    }`}
-                    aria-label={`View image variant ${idx + 1}`}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="h-[30px] sm:h-[34px]" /> /* Perfect spatial spacing alignment */
-            )
+            <div className="h-[20px] sm:h-[24px]" />
           )}
         </div>
       </div>

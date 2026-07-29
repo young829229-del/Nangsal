@@ -17,11 +17,6 @@ export const MoreThanClothesBanner: React.FC = () => {
               more than clothes
             </h2>
 
-            {/* Main Statement Paragraph in All-Caps */}
-            <p className="text-xs sm:text-sm md:text-[15px] font-sans font-bold tracking-wider text-neutral-800 leading-relaxed uppercase">
-              NANGSAL APPAREL ISN'T JUST ABOUT FASHION — IT'S ABOUT A FEELING. INSPIRED BY YOUTH CULTURE AND THE SPIRIT OF CREATIVE FREEDOM, WE DESIGN UNISEX STREETWEAR THAT SPEAKS FOR ITSELF. WHETHER YOU'RE CHILLING AT NANGSAL CAFE OR STEPPING OUT IN THE CITY, OUR PIECES MOVE WITH YOUR LIFESTYLE. FROM BREATHABLE FABRICS TO BOLD DESIGNS, EVERY STITCH IS MADE TO IGNITE YOUR STYLE.
-            </p>
-
           </div>
 
           {/* Right Column: Featured Image ("Instead of camo hoodie") and Video side-by-side */}

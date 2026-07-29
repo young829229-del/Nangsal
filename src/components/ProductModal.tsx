@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useApp } from "./AppContext";
-import { X, Plus, Minus, Check, AlertCircle, ArrowLeft, User, Phone, MapPin, Compass, CheckCircle2 } from "lucide-react";
+import { X, Plus, Minus, Check, AlertCircle, ArrowLeft, User, Phone, MapPin, Compass, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 import { QRCodeSVG } from "qrcode.react";
@@ -44,6 +44,9 @@ export const ProductModal: React.FC = () => {
   // Detailed full address fields
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+
+  const product = selectedProductForModal;
 
   const getCombinedAddress = () => {
     return city ? `${address.trim()}, ${city.trim()}` : address.trim();
@@ -53,6 +56,7 @@ export const ProductModal: React.FC = () => {
   const deliveryCharge = isInsideKtm ? (siteSettings?.deliveryInsideKtm ?? 120) : (siteSettings?.deliveryOutsideKtm ?? 200);
 
   const calculateSubtotal = () => {
+    if (!product) return 0;
     return product.price * quantity;
   };
 
@@ -99,9 +103,36 @@ export const ProductModal: React.FC = () => {
     }
   }, [selectedProductForModal, userProfile]);
 
-  if (!selectedProductForModal) return null;
+  if (!selectedProductForModal || !product) return null;
 
-  const product = selectedProductForModal;
+  const handlePrevImage = () => {
+    if (!product || product.images.length <= 1) return;
+    setActiveImgIdx((prev) => (prev - 1 + product.images.length) % product.images.length);
+  };
+
+  const handleNextImage = () => {
+    if (!product || product.images.length <= 1) return;
+    setActiveImgIdx((prev) => (prev + 1) % product.images.length);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartX - touchEndX;
+
+    if (Math.abs(diff) > 35) {
+      if (diff > 0) {
+        handleNextImage();
+      } else {
+        handlePrevImage();
+      }
+    }
+    setTouchStartX(null);
+  };
 
   const handleAddQty = () => setQuantity((prev) => prev + 1);
   const handleSubQty = () => setQuantity((prev) => (prev > 1 ? prev - 1 : 1));
@@ -109,14 +140,19 @@ export const ProductModal: React.FC = () => {
   const handleAddToBagSubmit = () => {
     if (product.isSoldOut) return;
 
-    if (!selectedSize) {
-      setErrorPrompt("PLEASE CHOOSE A SIZE SIZE_0");
-      // Auto clear error after 3s
-      setTimeout(() => setErrorPrompt(""), 3000);
-      return;
+    let finalSize = selectedSize;
+    if (!finalSize) {
+      if (userHeight || userWeight) {
+        finalSize = `CUSTOM (${userHeight ? 'HT: ' + userHeight : ''}${userHeight && userWeight ? ', ' : ''}${userWeight ? 'WT: ' + userWeight : ''})`;
+        setSelectedSize(finalSize);
+      } else {
+        setErrorPrompt("PLEASE CHOOSE A SIZE OR ENTER YOUR HEIGHT & WEIGHT");
+        setTimeout(() => setErrorPrompt(""), 3000);
+        return;
+      }
     }
 
-    addToCart(product, selectedSize, quantity, userHeight, userWeight);
+    addToCart(product, finalSize, quantity, userHeight, userWeight);
     setAddedConfirm(true);
     setTimeout(() => {
       setAddedConfirm(false);
@@ -127,10 +163,16 @@ export const ProductModal: React.FC = () => {
   const handleBuyItNow = () => {
     if (product.isSoldOut) return;
 
-    if (!selectedSize) {
-      setErrorPrompt("PLEASE CHOOSE A SIZE SIZE_0");
-      setTimeout(() => setErrorPrompt(""), 3000);
-      return;
+    let finalSize = selectedSize;
+    if (!finalSize) {
+      if (userHeight || userWeight) {
+        finalSize = `CUSTOM (${userHeight ? 'HT: ' + userHeight : ''}${userHeight && userWeight ? ', ' : ''}${userWeight ? 'WT: ' + userWeight : ''})`;
+        setSelectedSize(finalSize);
+      } else {
+        setErrorPrompt("PLEASE CHOOSE A SIZE OR ENTER YOUR HEIGHT & WEIGHT");
+        setTimeout(() => setErrorPrompt(""), 3000);
+        return;
+      }
     }
 
     setShowDirectCheckout(true);
@@ -264,22 +306,56 @@ export const ProductModal: React.FC = () => {
           {/* Left: Interactive Multi-Image Slideshow */}
           <div className={`flex-1 md:h-full bg-white relative flex flex-col items-center justify-center p-6 md:p-12 border-b md:border-b-0 md:border-r border-gray-100 flex-shrink-0 flex`}>
             
-            {/* Big active preview */}
-            <div className="w-full h-[320px] md:h-[450px] relative flex items-center justify-center">
+            {/* Big active preview with touch & drag swipe */}
+            <div 
+              className="w-full h-[320px] md:h-[450px] relative flex items-center justify-center select-none touch-pan-y overflow-hidden cursor-grab active:cursor-grabbing"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
               <AnimatePresence mode="wait">
                 <motion.img
                   key={activeImgIdx}
                   src={product.images[activeImgIdx]}
                   alt={product.imageAlt || product.name}
-                  initial={{ opacity: 0, x: 10 }}
+                  drag={product.images.length > 1 ? "x" : false}
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.2}
+                  onDragEnd={(_, info) => {
+                    if (info.offset.x < -35) {
+                      handleNextImage();
+                    } else if (info.offset.x > 35) {
+                      handlePrevImage();
+                    }
+                  }}
+                  initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.25 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.2 }}
                   style={product.imageStyle}
                   className="max-h-full max-w-full object-contain object-center mix-blend-multiply"
                   referrerPolicy="no-referrer"
                 />
               </AnimatePresence>
+
+              {/* Subtle Left/Right Navigation Arrows */}
+              {product.images.length > 1 && (
+                <>
+                  <button
+                    onClick={handlePrevImage}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-gray-200 flex items-center justify-center shadow-xs transition-opacity opacity-70 hover:opacity-100 z-10 cursor-pointer"
+                    aria-label="Previous image"
+                  >
+                    <ChevronLeft size={16} className="text-black" />
+                  </button>
+                  <button
+                    onClick={handleNextImage}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-gray-200 flex items-center justify-center shadow-xs transition-opacity opacity-70 hover:opacity-100 z-10 cursor-pointer"
+                    aria-label="Next image"
+                  >
+                    <ChevronRight size={16} className="text-black" />
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Thumbnail Navigation Dot Bar (Only if multiple images) */}
@@ -650,7 +726,7 @@ export const ProductModal: React.FC = () => {
 
                             <div className="w-full space-y-2 bg-yellow-50/50 p-4 border-2 border-yellow-400 rounded-sm">
                               <label className="block text-sm md:text-base font-black text-black text-left bg-yellow-200 inline-block px-1">UPLOAD SCREENSHOT (SS) *</label>
-                              <input type="file" accept="image/*" onChange={handleQrUpload} className="block w-full text-sm md:text-base text-gray-700 file:mr-4 file:py-2.5 file:px-4 file:border-0 file:font-bold file:bg-black file:text-white hover:file:bg-neutral-800 file:cursor-pointer transition-colors border border-gray-300 bg-white rounded-sm shadow-sm" />
+                              <input type="file" accept="image/*" onChange={handleQrUpload} className="block w-full text-sm md:text-base text-gray-700 file:mr-4 file:py-2.5 file:px-4 file:border-0 file:font-bold file:bg-orange-500 file:text-white hover:file:bg-orange-600 file:cursor-pointer transition-colors border border-gray-300 bg-white rounded-sm shadow-sm" />
                               {paymentScreenshot && (
                                 <div className="mt-2 flex items-center gap-2 text-green-600 text-xs font-bold">
                                   <CheckCircle2 size={16} /> SCREENSHOT ATTACHED

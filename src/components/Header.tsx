@@ -28,8 +28,8 @@ export const Header: React.FC = () => {
   } = useApp();
 
   const isAdmin = 
-    user?.email === "comodevs@gmail.com" || user?.email === "sahakash2007777@gmail.com" || user?.email === "ghalanbinod4@gmail.com" ||
-    userProfile?.email === "comodevs@gmail.com" || userProfile?.email === "sahakash2007777@gmail.com" || userProfile?.email === "ghalanbinod4@gmail.com";
+    user?.email === "comodevs@gmail.com" || user?.email === "sahakash2007777@gmail.com" || user?.email === "sasukegurung77@gmail.com" || user?.email === "ghalanbinod4@gmail.com" ||
+    userProfile?.email === "comodevs@gmail.com" || userProfile?.email === "sahakash2007777@gmail.com" || userProfile?.email === "sasukegurung77@gmail.com" || userProfile?.email === "ghalanbinod4@gmail.com";
 
   const [scrolled, setScrolled] = useState(false);
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
@@ -246,9 +246,12 @@ export const Header: React.FC = () => {
                 }}
                 className="group flex flex-col justify-center cursor-pointer select-none"
               >
-                <span className="flex items-center justify-center select-none animate-fade-in font-black text-2xl md:text-3xl font-sans tracking-widest text-black uppercase">
-                  NANGSAL
-                </span>
+                <img
+                  src="https://i.ibb.co/HphLbYyj/nangsal-logo-white-bg.png"
+                  alt="NANGSAL Logo"
+                  className="h-7 md:h-9 object-contain mix-blend-multiply transition-transform group-hover:scale-105"
+                  referrerPolicy="no-referrer"
+                />
               </button>
             </div>
 
@@ -343,46 +346,8 @@ export const Header: React.FC = () => {
               )}
             </nav>
 
-            {/* Right: Currency, Search, Profile, Cart */}
+            {/* Right: Search, Profile, Cart */}
             <div id="nav-right-actions" className="flex-1 flex items-center justify-end gap-6 md:gap-7">
-              {/* Currency Selector */}
-              <div className="relative animate-fade-in">
-                <button
-                  id="currency-selector-btn"
-                  onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
-                  className="text-xs font-semibold tracking-[0.2em] text-black hover:opacity-50 transition-all flex items-center gap-1 cursor-pointer py-1"
-                >
-                  {currency} <ChevronDown size={11} className="text-neutral-500 transition-transform duration-200" style={{ transform: showCurrencyDropdown ? "rotate(180deg)" : "none" }} />
-                </button>
-
-                {/* Currency dropdown */}
-                <AnimatePresence>
-                  {showCurrencyDropdown && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowCurrencyDropdown(false)} />
-                      <motion.div
-                        initial={{ opacity: 0, y: 5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 5 }}
-                        className="absolute right-0 mt-2.5 w-24 bg-white border border-gray-200 shadow-lg rounded-sm py-1.5 z-50 text-right font-mono"
-                      >
-                        {(["NPR", "USD", "AUD", "EUR", "GBP", "JPY"] as CurrencyCode[]).map((code) => (
-                          <button
-                            key={code}
-                            id={`currency-option-${code}`}
-                            onClick={() => toggleCurrency(code)}
-                            className={`w-full py-1.5 px-3 text-[10px] tracking-widest text-right transition-colors cursor-pointer ${
-                              currency === code ? "bg-black text-white font-bold" : "text-gray-600 hover:bg-gray-100 hover:text-black"
-                            }`}
-                          >
-                            {code}
-                          </button>
-                        ))}
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-              </div>
 
               {/* Profile Icon button */}
               <button
@@ -418,12 +383,19 @@ export const Header: React.FC = () => {
                 aria-label="Shopping bag"
               >
                 <div className="relative">
-                  <ShoppingBag size={20} className="stroke-[1.5] transition-transform group-hover:scale-105" />
+                  <ShoppingBag
+                    size={20}
+                    className={`stroke-[1.8] transition-transform group-hover:scale-105 ${
+                      cartCount > 0
+                        ? "text-orange-500 fill-orange-500/20"
+                        : "text-black"
+                    }`}
+                  />
                   {cartCount > 0 && (
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="absolute -top-1.5 -right-1.5 min-w-4.5 h-4.5 bg-black text-white text-[8px] font-mono font-bold flex items-center justify-center rounded-full px-1 border border-white"
+                      className="absolute -top-1.5 -right-1.5 min-w-4.5 h-4.5 bg-orange-500 text-white text-[8px] font-mono font-bold flex items-center justify-center rounded-full px-1 border border-white"
                     >
                       {cartCount}
                     </motion.div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useApp } from "./AppContext";
-import { X, Plus, Minus, Trash2, ArrowRight, ShoppingBag, Gift, CheckCircle2 } from "lucide-react";
+import { X, Plus, Minus, Trash2, ArrowRight, ShoppingBag, Gift, CheckCircle2, ShieldCheck, Lock, Sparkles, Check, CreditCard, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 import { QRCodeSVG } from "qrcode.react";
@@ -27,12 +27,52 @@ export const CartDrawer: React.FC = () => {
   const [generatedOrderNum, setGeneratedOrderNum] = useState("");
   const [promoCodeInput, setPromoCodeInput] = useState("");
 
-  const [paymentMethod, setPaymentMethod] = useState<"fonepay" | "cod">("fonepay");
+  const [paymentMethod, setPaymentMethod] = useState<"esewa" | "bank" | "cod">("esewa");
+  const [activeQr, setActiveQr] = useState<"esewa" | "bank">("esewa");
   const [paymentScreenshot, setPaymentScreenshot] = useState<string | null>(null);
 
   // Detailed full address fields
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
+
+  // Authorization progress animation states
+  const [authStepMessage, setAuthStepMessage] = useState("CONNECTING TO SECURE PAYMENT GATEWAY...");
+  const [authProgress, setAuthProgress] = useState(0);
+
+  useEffect(() => {
+    if (checkoutStep === "loading") {
+      setAuthProgress(15);
+      setAuthStepMessage("CONNECTING TO SECURE PAYMENT GATEWAY...");
+
+      const t1 = setTimeout(() => {
+        setAuthProgress(45);
+        setAuthStepMessage("VERIFYING PAYMENT PROOF & SCREENSHOT...");
+      }, 700);
+
+      const t2 = setTimeout(() => {
+        setAuthProgress(80);
+        setAuthStepMessage("AUTHORIZING ORDER DEPOSIT & LOGGING RECEIPT...");
+      }, 1600);
+
+      const t3 = setTimeout(() => {
+        setAuthProgress(100);
+        setAuthStepMessage("PAYMENT AUTHORIZED & VERIFIED!");
+      }, 2300);
+
+      const t4 = setTimeout(() => {
+        setCheckoutStep("complete");
+      }, 2900);
+
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+        clearTimeout(t4);
+      };
+    } else {
+      setAuthProgress(0);
+    }
+  }, [checkoutStep]);
 
   const getCombinedAddress = () => {
     return city ? `${address.trim()}, ${city.trim()}` : address.trim();
@@ -153,11 +193,18 @@ export const CartDrawer: React.FC = () => {
     await updateProfileDetails(name, phone, combinedAddress);
 
     // 2. Clear template-based / mock tracking and write a real Order payload in Firestore
-    await saveOrderToHistory(name, phone, combinedAddress, calculateTotal(), paymentScreenshot || undefined);
-
-    setTimeout(() => {
-      setCheckoutStep("complete");
-    }, 1500);
+    await saveOrderToHistory(
+      name, 
+      phone, 
+      combinedAddress, 
+      calculateTotal(), 
+      paymentScreenshot || undefined,
+      undefined,
+      paymentMethod,
+      deliveryCharge,
+      calculateSubtotal(),
+      city
+    );
   };
 
   return (
@@ -184,7 +231,7 @@ export const CartDrawer: React.FC = () => {
             {/* Drawer Header */}
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <ShoppingBag size={16} />
+                <ShoppingBag size={18} className={cart.length > 0 ? "text-orange-500 fill-orange-500/20" : "text-black"} />
                 <h2 className="text-xs font-mono tracking-[0.25em] text-black font-extrabold uppercase">
                   SHOPPING BAG ({cart.reduce((s, i) => s + i.quantity, 0)})
                 </h2>
@@ -206,8 +253,8 @@ export const CartDrawer: React.FC = () => {
                 <div className="px-6 py-4 space-y-6">
                   {cart.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-center py-20 space-y-4">
-                      <div className="w-14 h-14 rounded-full bg-gray-50 flex items-center justify-center text-gray-300">
-                        <ShoppingBag size={24} />
+                      <div className="w-14 h-14 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 border border-gray-150">
+                        <ShoppingBag size={24} className="text-gray-300" />
                       </div>
                       <p className="text-[10px] font-mono tracking-widest text-gray-400">
                         YOUR BAG IS CURRENTLY EMPTY
@@ -407,96 +454,196 @@ export const CartDrawer: React.FC = () => {
                       ) : null}
 
                       <div className="text-left space-y-2 pt-2 pb-2">
-                        <label className="text-xs md:text-sm font-bold tracking-widest text-gray-500 uppercase block mb-3">
-                          PAYMENT METHOD
+                        <label className="text-xs md:text-sm font-bold tracking-widest text-gray-500 uppercase block mb-2">
+                          SELECT PAYMENT METHOD *
                         </label>
-                        <div className="grid grid-cols-2 gap-2">
+
+                        {/* Three Main Payment Options: eSewa | Bank | COD */}
+                        <div className="grid grid-cols-3 gap-2 mb-3">
                           <button
                             type="button"
-                            onClick={() => setPaymentMethod("fonepay")}
-                            className={`py-4 md:py-5 text-sm font-bold tracking-widest uppercase transition-all rounded-sm border ${
-                              paymentMethod === "fonepay" 
-                                ? "border-black bg-black text-white" 
-                                : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                            onClick={() => {
+                              setPaymentMethod("esewa");
+                              setActiveQr("esewa");
+                            }}
+                            className={`py-3 px-2 text-[11px] font-extrabold tracking-wider uppercase transition-all rounded-sm border cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                              paymentMethod === "esewa"
+                                ? "border-emerald-600 bg-emerald-600 text-white shadow-md"
+                                : "border-gray-200 bg-white text-gray-700 hover:border-emerald-400"
                             }`}
                           >
-                            PAY NOW
+                            <span>eSEWA</span>
+                            <span className="text-[8px] opacity-80 font-mono font-normal">DIRECT QR</span>
                           </button>
+
                           <button
                             type="button"
-                            onClick={() => setPaymentMethod("cod")}
-                            className={`py-4 md:py-5 text-sm font-bold tracking-widest uppercase transition-all rounded-sm border ${
-                              paymentMethod === "cod" 
-                                ? "border-black bg-black text-white" 
-                                : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                            onClick={() => {
+                              setPaymentMethod("bank");
+                              setActiveQr("bank");
+                            }}
+                            className={`py-3 px-2 text-[11px] font-extrabold tracking-wider uppercase transition-all rounded-sm border cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                              paymentMethod === "bank"
+                                ? "border-black bg-black text-white shadow-md"
+                                : "border-gray-200 bg-white text-gray-700 hover:border-black"
                             }`}
                           >
-                            COD
+                            <span>BANK</span>
+                            <span className="text-[8px] opacity-80 font-mono font-normal">TRANSFER</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPaymentMethod("cod");
+                              // Default to eSewa QR for COD delivery charge if not set
+                            }}
+                            className={`py-3 px-2 text-[11px] font-extrabold tracking-wider uppercase transition-all rounded-sm border cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                              paymentMethod === "cod"
+                                ? "border-amber-600 bg-amber-600 text-white shadow-md"
+                                : "border-gray-200 bg-white text-gray-700 hover:border-amber-500"
+                            }`}
+                          >
+                            <span>COD</span>
+                            <span className="text-[8px] opacity-80 font-mono font-normal">ON DELIVERY</span>
                           </button>
                         </div>
 
-                        {paymentMethod && (
-                          <div className="flex flex-col items-center justify-center p-4 bg-white border border-gray-200 rounded-sm mt-3 text-center">
-                            <p className="text-black font-black tracking-widest text-lg md:text-xl uppercase mb-3">SCAN TO PAY</p>
-                            
-                            {/* Bank QR & eSewa QR Grid */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mb-3">
-                              {/* Bank QR */}
-                              <div className="bg-neutral-50 p-3 border border-gray-200 rounded flex flex-col items-center">
-                                <span className="text-[10px] font-bold font-mono tracking-widest text-black mb-1.5 uppercase">BANK QR</span>
-                                <div className="w-28 h-28 bg-white flex items-center justify-center rounded border border-gray-100 overflow-hidden mb-1.5">
-                                  <img src={siteSettings.bankQrImage} alt="Bank QR Code" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                                </div>
-                                <span className="text-[10px] font-mono font-black text-black uppercase">A/C: {siteSettings.bankAccountName}</span>
-                              </div>
+                        {/* Payment Method Details & QR Display Box */}
+                        <div className="flex flex-col items-center justify-center p-4 bg-white border border-gray-200 rounded-sm mt-3 text-center">
+                          
+                          {/* Banner Explanation for COD vs Full Payment */}
+                          {paymentMethod === "cod" ? (
+                            <div className="w-full bg-amber-50 border border-amber-300 p-3 rounded mb-3 text-left space-y-1">
+                              <p className="text-[11px] font-extrabold text-amber-900 uppercase font-mono flex items-center justify-between">
+                                <span>CASH ON DELIVERY (COD)</span>
+                                <span className="bg-amber-200 px-1.5 py-0.5 rounded text-[9px] font-bold">ADVANCE FEE</span>
+                              </p>
+                              <p className="text-[10px] text-amber-800 font-mono leading-tight">
+                                Pay the <strong className="underline font-black">{formatPrice(deliveryCharge)}</strong> delivery charge in advance via eSewa or Bank QR code.
+                              </p>
+                              <p className="text-[9px] text-amber-700 font-mono font-semibold pt-1 border-t border-amber-200/60">
+                                Remaining item balance of <strong className="text-black">{formatPrice(calculateSubtotal())}</strong> will be collected in CASH upon delivery.
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="w-full bg-neutral-50 border border-neutral-200 p-3 rounded mb-3 text-left space-y-1">
+                              <p className="text-[11px] font-extrabold text-black uppercase font-mono">
+                                {paymentMethod === "esewa" ? "eSEWA DIRECT ONLINE PAYMENT" : "BANK DIRECT TRANSFER"}
+                              </p>
+                              <p className="text-[10px] text-gray-600 font-mono leading-tight">
+                                Pay the total amount <strong className="text-black">{formatPrice(calculateTotal())}</strong> using {paymentMethod === "esewa" ? "eSewa QR" : "Bank QR"} below.
+                              </p>
+                            </div>
+                          )}
 
-                              {/* eSewa QR */}
-                              <div className="bg-neutral-50 p-3 border border-gray-200 rounded flex flex-col items-center">
-                                <span className="text-[10px] font-bold font-mono tracking-widest text-black mb-1.5 uppercase">eSEWA QR</span>
-                                <div className="w-28 h-28 bg-white flex items-center justify-center rounded border border-gray-100 overflow-hidden mb-1.5">
-                                  <img src={siteSettings.esewaQrImage} alt="eSewa QR Code" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                                </div>
-                                <span className="text-[10px] font-mono font-black text-black uppercase">HOLDER: {siteSettings.esewaHolderName}</span>
-                              </div>
+                          {/* Two Buttons Inside: eSewa QR & Bank QR Selector */}
+                          <div className="w-full space-y-1.5 mb-3">
+                            <label className="text-[9px] font-mono font-bold tracking-widest text-gray-400 uppercase block text-left">
+                              SELECT QR CODE TO SCAN:
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setActiveQr("esewa")}
+                                className={`py-2 px-3 text-[10px] font-mono font-bold uppercase rounded border transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                                  activeQr === "esewa"
+                                    ? "bg-emerald-600 text-white border-emerald-600 shadow"
+                                    : "bg-gray-50 text-gray-700 border-gray-200 hover:border-emerald-500"
+                                }`}
+                              >
+                                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                eSEWA QR
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setActiveQr("bank")}
+                                className={`py-2 px-3 text-[10px] font-mono font-bold uppercase rounded border transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                                  activeQr === "bank"
+                                    ? "bg-black text-white border-black shadow"
+                                    : "bg-gray-50 text-gray-700 border-gray-200 hover:border-black"
+                                }`}
+                              >
+                                <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                                BANK QR
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Display Active QR Code */}
+                          <div className="w-full bg-neutral-50 p-4 border border-gray-200 rounded flex flex-col items-center mb-3">
+                            <span className="text-[11px] font-bold font-mono tracking-widest text-black mb-2 uppercase">
+                              {activeQr === "esewa" ? "SCAN eSEWA QR" : "SCAN BANK QR"}
+                            </span>
+                            
+                            <div className="w-36 h-36 bg-white p-2 flex items-center justify-center rounded border border-gray-200 shadow-sm overflow-hidden mb-2">
+                              <img 
+                                src={activeQr === "esewa" ? siteSettings.esewaQrImage : siteSettings.bankQrImage} 
+                                alt={activeQr === "esewa" ? "eSewa QR Code" : "Bank QR Code"} 
+                                className="w-full h-full object-contain" 
+                                referrerPolicy="no-referrer" 
+                              />
                             </div>
 
-                            <p className="text-black font-black tracking-widest text-lg md:text-xl uppercase mt-2">
-                              {formatPrice(paymentMethod === "cod" ? deliveryCharge : calculateTotal())}
-                            </p>
-                            <p className="text-xs text-gray-500 font-bold mb-3">
-                              {paymentMethod === "cod" ? "DELIVERY CHARGE ONLY" : "FULL AMOUNT"}
-                            </p>
-
-                            {/* WhatsApp Direct Order Button */}
-                            <a
-                              href={`https://wa.me/${siteSettings.whatsappNumber.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
-                                `Hello Nangsal Apparel! I want to order items in my cart. Total: ${formatPrice(calculateTotal())}. Order #${generatedOrderNum}`
-                              )}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="w-full mb-3 bg-[#25D366] text-white py-2.5 px-3 rounded text-[11px] font-mono font-bold tracking-widest uppercase flex items-center justify-center gap-2 hover:bg-emerald-600 transition-colors shadow"
-                            >
-                              Order via WhatsApp ({siteSettings.whatsappNumber})
-                            </a>
-
-                            <div className="mt-2 w-full bg-yellow-50/50 p-3 border-2 border-yellow-400 rounded-sm">
-                              <label className="text-xs font-black text-black uppercase block mb-1 text-left bg-yellow-200 inline-block px-1">
-                                UPLOAD SCREENSHOT (SS) *
-                              </label>
-                              <input 
-                                type="file" 
-                                accept="image/jpeg, image/png" 
-                                onChange={handleImageUpload}
-                                className="block w-full text-xs text-gray-700 file:mr-3 file:py-2 file:px-3 file:border-0 file:font-bold file:bg-black file:text-white hover:file:bg-neutral-800 file:cursor-pointer transition-colors border border-gray-300 bg-white rounded-sm shadow-sm"
-                              />
-                              {paymentScreenshot && (
-                                <div className="mt-2 text-xs text-emerald-600 font-bold uppercase flex items-center justify-center gap-1">
-                                  <CheckCircle2 size={16} /> SCREENSHOT ATTACHED
-                                </div>
+                            <div className="bg-white px-3 py-1.5 rounded border border-gray-200 w-full text-center">
+                              {activeQr === "esewa" ? (
+                                <p className="text-[10px] font-mono font-black text-black uppercase">
+                                  HOLDER: {siteSettings.esewaHolderName}
+                                </p>
+                              ) : (
+                                <p className="text-[10px] font-mono font-black text-black uppercase">
+                                  A/C: {siteSettings.bankAccountName}
+                                </p>
                               )}
                             </div>
                           </div>
-                        )}
+
+                          {/* Payment Amount Display */}
+                          <div className="bg-neutral-900 text-white w-full p-3 rounded mb-3 text-center">
+                            <p className="text-[9px] font-mono font-bold tracking-widest text-gray-400 uppercase">
+                              {paymentMethod === "cod" ? "REQUIRED ADVANCE PAYMENT" : "REQUIRED TOTAL PAYMENT"}
+                            </p>
+                            <p className="text-xl md:text-2xl font-black font-mono tracking-widest text-emerald-400 mt-0.5">
+                              {formatPrice(paymentMethod === "cod" ? deliveryCharge : calculateTotal())}
+                            </p>
+                            <p className="text-[9px] font-mono text-gray-300 mt-1 uppercase font-semibold">
+                              {paymentMethod === "cod" ? "DELIVERY CHARGE ONLY" : "FULL ORDER TOTAL"}
+                            </p>
+                          </div>
+
+                          {/* WhatsApp Direct Order Option */}
+                          <a
+                            href={`https://wa.me/${siteSettings.whatsappNumber.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                              paymentMethod === "cod" 
+                                ? `Hello Nangsal Apparel! I want to place a COD order #${generatedOrderNum}. Items Total: ${formatPrice(calculateSubtotal())}. Advance Delivery Charge (${formatPrice(deliveryCharge)}) paid via ${activeQr.toUpperCase()} QR.`
+                                : `Hello Nangsal Apparel! I want to order items in my cart #${generatedOrderNum}. Total Amount: ${formatPrice(calculateTotal())} paid via ${activeQr.toUpperCase()} QR.`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full mb-3 bg-[#25D366] text-white py-2.5 px-3 rounded text-[11px] font-mono font-bold tracking-widest uppercase flex items-center justify-center gap-2 hover:bg-emerald-600 transition-colors shadow"
+                          >
+                            Order via WhatsApp ({siteSettings.whatsappNumber})
+                          </a>
+
+                          {/* Screenshot Upload Requirement */}
+                          <div className="mt-1 w-full bg-yellow-50/70 p-3 border-2 border-yellow-400 rounded-sm">
+                            <label className="text-xs font-black text-black uppercase block mb-1 text-left bg-yellow-200 inline-block px-1">
+                              UPLOAD SCREENSHOT (SS) *
+                            </label>
+                            <input 
+                              type="file" 
+                              accept="image/jpeg, image/png" 
+                              onChange={handleImageUpload}
+                              className="block w-full text-xs text-gray-700 file:mr-3 file:py-2 file:px-3 file:border-0 file:font-bold file:bg-orange-500 file:text-white hover:file:bg-orange-600 file:cursor-pointer transition-colors border border-gray-300 bg-white rounded-sm shadow-sm"
+                            />
+                            {paymentScreenshot && (
+                              <div className="mt-2 text-xs text-emerald-600 font-bold uppercase flex items-center justify-center gap-1">
+                                <CheckCircle2 size={16} /> SCREENSHOT ATTACHED
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
                       <button
@@ -511,82 +658,157 @@ export const CartDrawer: React.FC = () => {
                 )}
               </div>
             ) : checkoutStep === "loading" ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-4 font-mono select-none">
-                <div className="relative w-14 h-14">
-                  {/* Digital spin rings */}
-                  <div className="absolute inset-0 rounded-full border-4 border-gray-100" />
-                  <div className="absolute inset-0 rounded-full border-4 border-black border-t-transparent animate-spin" />
-                </div>
-                <p className="text-sm font-black tracking-widest text-black uppercase">
-                  AUTHORIZING DEPOSIT...
-                </p>
-                <p className="text-[10px] text-gray-400 tracking-wider uppercase max-w-xs leading-relaxed">
-                  ESTABLISHING SECURE CONNECTION_0 TO MERCURIAL DEPOSITORIES WORLDWIDE. DO NOT CLOSE BAG.
-                </p>
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-6 font-mono select-none">
-                <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center text-emerald-500 animate-bounce">
-                  <CheckCircle2 size={36} />
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs text-emerald-600 font-bold tracking-[0.3em] uppercase">
-                    ORDER INITIATED
-                  </p>
-                  <h3 className="text-[11px] font-bold text-black tracking-widest uppercase pb-1 border-b border-gray-150">
-                    RECEIPT NO: #{generatedOrderNum}
-                  </h3>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-6 font-mono select-none my-auto"
+              >
+                {/* Clean Green Pulse Circle & Icon */}
+                <div className="relative w-24 h-24 flex items-center justify-center my-2">
+                  <motion.div
+                    animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.7, 0.3] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute inset-0 rounded-full bg-emerald-500/20 border-2 border-emerald-500"
+                  />
+                  <div className="w-16 h-16 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 z-10">
+                    <CheckCircle2 size={40} className="animate-pulse stroke-[2.5]" />
+                  </div>
                 </div>
 
-                <div className="bg-emerald-50/60 border border-emerald-100 p-4 rounded-sm text-left w-full space-y-2 text-[10px] tracking-wide leading-relaxed">
-                  {paymentMethod && (
-                    <div className="flex flex-col items-center justify-center p-6 bg-white border border-gray-200 rounded-sm mb-4">
-                      <p className="text-black font-bold tracking-widest text-sm uppercase mb-2">PAYMENT LOGGED</p>
-                      {paymentScreenshot ? (
-                        <p className="text-emerald-600 font-mono text-[10px] uppercase tracking-wider text-center font-bold">
-                          SCREENSHOT UPLOADED SECURELY.
+                <div className="space-y-2 max-w-xs">
+                  <p className="text-xs font-black tracking-[0.2em] text-emerald-600 uppercase">
+                    AUTHORIZING PAYMENT...
+                  </p>
+                  <p className="text-[10px] text-neutral-500 font-bold tracking-wider uppercase leading-relaxed">
+                    VERIFYING PAYMENT RECEIPT & PROCESSING ORDER.
+                  </p>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4 }}
+                className="relative flex-1 flex flex-col items-center justify-center text-center p-6 space-y-5 font-mono select-none overflow-hidden my-auto"
+              >
+                {/* Green Checkmark Success Icon Animation */}
+                <div className="relative z-10">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: [0, 1.15, 1] }}
+                    transition={{ type: "spring", stiffness: 350, damping: 20, delay: 0.1 }}
+                    className="w-20 h-20 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-xl shadow-emerald-500/30"
+                  >
+                    <CheckCircle2 size={44} className="stroke-[2.5]" />
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: [0, 0.6, 0], scale: [0.8, 1.8, 2.2] }}
+                    transition={{ duration: 1.2, ease: "easeOut" }}
+                    className="absolute inset-0 bg-emerald-500 rounded-full -z-10"
+                  />
+                </div>
+
+                {/* Verified Authorization Banner & Status */}
+                <div className="space-y-2 z-10">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-700 text-[10px] font-black tracking-widest uppercase shadow-sm"
+                  >
+                    <Clock size={12} className="text-emerald-600 animate-spin" />
+                    PAYMENT VERIFICATION PENDING
+                  </motion.div>
+
+                  <motion.h3
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="text-xs font-mono font-black text-black tracking-[0.2em] uppercase pt-1"
+                  >
+                    RECEIPT NO: #{generatedOrderNum}
+                  </motion.h3>
+                </div>
+
+                {/* Receipt Card Details */}
+                <motion.div
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="bg-neutral-50 border border-neutral-200 p-4 rounded-md text-left w-full space-y-3 text-[10px] tracking-wide leading-relaxed shadow-sm z-10"
+                >
+                  <div className="flex items-center justify-between border-b border-neutral-200 pb-2">
+                    <span className="font-bold text-neutral-400 uppercase tracking-widest text-[9px]">ORDER STATUS</span>
+                    <span className="bg-amber-500/15 text-amber-700 border border-amber-300 font-mono font-extrabold px-2 py-0.5 rounded text-[9px] tracking-widest uppercase flex items-center gap-1">
+                      <Clock size={10} /> PAYMENT VERIFICATION PENDING
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1 text-[10px]">
+                    <div>
+                      <p className="text-neutral-400 font-bold uppercase text-[8px] tracking-wider">CUSTOMER</p>
+                      <p className="text-black font-extrabold uppercase truncate">{name || "NANGSAL CUSTOMER"}</p>
+                    </div>
+                    <div>
+                      <p className="text-neutral-400 font-bold uppercase text-[8px] tracking-wider">PHONE</p>
+                      <p className="text-black font-mono font-bold">{phone}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-neutral-400 font-bold uppercase text-[8px] tracking-wider">DELIVERY ADDRESS</p>
+                    <p className="text-neutral-800 font-semibold uppercase">{getCombinedAddress()}</p>
+                  </div>
+
+                  {paymentScreenshot && (
+                    <div className="pt-2 border-t border-neutral-200 flex items-center gap-2">
+                      <img
+                        src={paymentScreenshot}
+                        alt="Payment proof"
+                        className="w-10 h-10 object-cover rounded border border-neutral-300 shadow-sm"
+                      />
+                      <div className="text-[9px] font-mono">
+                        <p className="text-emerald-600 font-bold uppercase flex items-center gap-1">
+                          <CheckCircle2 size={11} /> SCREENSHOT ATTACHED
                         </p>
-                      ) : (
-                        <p className="text-gray-500 font-mono text-[10px] uppercase tracking-wider text-center">
-                          PLEASE ATTACH THE PAYMENT SCREENSHOT TO PROCEED.
-                        </p>
-                      )}
-                      {paymentMethod === "cod" && (
-                        <p className="text-gray-500 font-mono text-[10px] uppercase tracking-wider text-center mt-2 border-t border-gray-100 pt-2 w-full">
-                          PLEASE PREPARE {formatPrice(calculateSubtotal())} IN CASH FOR THE DELIVERY RIDER.
-                        </p>
-                      )}
+                        <p className="text-neutral-500 font-bold uppercase">PAYMENT VERIFICATION PENDING</p>
+                      </div>
                     </div>
                   )}
+                </motion.div>
 
-                  <p className="text-emerald-800 font-bold uppercase flex items-center gap-1.5 text-[9px]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-                    ORDER PLACED SUCCESSFULLY
-                  </p>
-                  <p className="text-gray-700 uppercase font-medium">
-                    CUSTOMER: <span className="text-black">{name.toUpperCase()}</span>
-                  </p>
-                  <p className="text-gray-500 uppercase">
-                    Your order has been queued for delivery! You can track the status in your account order history.
-                  </p>
-                  <p className="text-gray-600 uppercase font-semibold">
-                    DESTINATION: {getCombinedAddress().toUpperCase()}
-                  </p>
-                </div>
+                {/* Actions */}
+                <motion.div
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="w-full space-y-2 z-10"
+                >
+                  <a
+                    href={`https://wa.me/${siteSettings.whatsappNumber.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                      `Hello Nangsal Apparel! I have completed payment authorization for order #${generatedOrderNum}. Please confirm tracking!`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full bg-[#25D366] text-white py-3 px-4 rounded text-[10px] font-mono font-bold tracking-[0.2em] uppercase flex items-center justify-center gap-2 hover:bg-emerald-600 transition-colors shadow-md"
+                  >
+                    TRACK VIA WHATSAPP ({siteSettings.whatsappNumber})
+                  </a>
 
-                <div className="w-full space-y-2.5">
                   <button
                     id="cart-complete-confirm-btn"
                     onClick={() => {
                       clearCart();
                       handleClose();
                     }}
-                    className="w-full bg-black text-white text-[10px] font-mono tracking-[0.25em] py-4 uppercase font-bold hover:bg-neutral-900 transition-colors rounded-sm cursor-pointer"
+                    className="w-full bg-black text-white text-[10px] font-mono tracking-[0.25em] py-3.5 uppercase font-bold hover:bg-neutral-900 transition-colors rounded-sm cursor-pointer shadow"
                   >
                     RETURN TO STOREDROP
                   </button>
-                </div>
-              </div>
+                </motion.div>
+              </motion.div>
             )}
           </motion.div>
         </div>

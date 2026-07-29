@@ -21,7 +21,7 @@ const FAQS: FAQItem[] = [
   {
     tag: "RESTOCKS",
     q: "WILL SOLD OUT ITEMS EVER BE RESTOCKED?",
-    a: "NANGSAL APPAREL FOCUSES ON EXCLUSIVE, LIMITED-RUN COLLECTIONS TO KEEP OUR PIECES UNIQUE. ONCE A SPECIFIC ITEM IS COMPLETELY SOLD OUT, IT IS VERY RARELY BROUGHT BACK OR RESTOCKED.",
+    a: "NO, NOT AT ALL. NANGSAL APPAREL FOCUSES STRICTLY ON EXCLUSIVE, LIMITED-RUN COLLECTIONS TO KEEP OUR PIECES UNIQUE. ONCE A SPECIFIC ITEM IS SOLD OUT, IT WILL NEVER BE RESTOCKED.",
   },
   {
     tag: "MATERIALS",
@@ -113,7 +113,7 @@ export const StudioSpecs: React.FC = () => {
               <Truck size={16} className="text-black" />
             </div>
             <h4 className="text-[11px] font-extrabold tracking-widest text-black uppercase">
-              DHL COURIERS DELIVERY
+              PATHAO COURIER DELIVERY
             </h4>
             <p className="text-[10px] font-mono tracking-wider text-[#767676] uppercase leading-relaxed">
               DECLARED COMPOSITIONS ARE DISPATCHED WITHIN 48H SECURING FASTEST GLOBAL DELIVERIES.

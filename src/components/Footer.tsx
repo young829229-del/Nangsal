@@ -32,7 +32,7 @@ const PinterestIcon = () => (
 
 const ButterflyLogo: React.FC<{ className?: string }> = ({ className = "h-5 w-auto" }) => (
   <img
-    src="https://iili.io/C3vv6J4.png"
+    src="https://i.ibb.co/JwSCMGR5/IMG-20260728-WA0007.jpg"
     alt="Nangsal Apparel Decal"
     className={`${className} object-contain`}
     referrerPolicy="no-referrer"
@@ -57,9 +57,12 @@ export const Footer: React.FC = () => {
           {/* Column 1: Brand details and statement */}
           <div className="md:col-span-2 space-y-6">
             <span className="flex items-center select-none">
-              <span className="text-2xl md:text-3xl font-black font-sans tracking-widest text-black uppercase">
-                NANGSAL
-              </span>
+              <img
+                src="https://i.ibb.co/HphLbYyj/nangsal-logo-white-bg.png"
+                alt="NANGSAL Logo"
+                className="h-8 md:h-10 object-contain mix-blend-multiply"
+                referrerPolicy="no-referrer"
+              />
             </span>
             <p className="text-[11px] font-mono tracking-wider text-gray-400 uppercase max-w-sm leading-relaxed">
               NANGSAL APPAREL IS AN AVANT-GARDE STREETWEAR LABEL PRODUCING LIMITED EDITION UNISEX APPAREL INSPIRED BY YOUTH CULTURE AND CREATIVE FREEDOM.
@@ -114,14 +117,6 @@ export const Footer: React.FC = () => {
                   ADMIN TERMINAL // <ArrowUpRight size={10} />
                 </button>
               </li>
-              <li>
-                <button
-                  onClick={() => scrollToTopAndSetTab("TERMS")}
-                  className="hover:text-black transition-colors cursor-pointer flex items-center gap-1 hover:font-bold text-left"
-                >
-                  CURRENCY EXCHANGE <ArrowUpRight size={10} />
-                </button>
-              </li>
             </ul>
           </div>
         </div>
@@ -139,9 +134,9 @@ export const Footer: React.FC = () => {
                 if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
               }, 150);
             }}
-            className="group mb-10 bg-black text-white hover:bg-neutral-800 transition-all font-mono font-bold uppercase text-[10px] tracking-[0.25em] px-8 py-3.5 rounded-full flex items-center justify-center gap-3.5 shadow-sm hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
+            className="group mb-10 bg-orange-500 text-white hover:bg-orange-600 transition-all font-mono font-bold uppercase text-[10px] tracking-[0.25em] px-8 py-3.5 rounded-full flex items-center justify-center gap-3.5 shadow-md shadow-orange-500/20 hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
           >
-            <ButterflyLogo className="w-5 h-4 brightness-0 invert transition-transform group-hover:rotate-12" />
+            <ButterflyLogo className="w-5 h-5 rounded-full object-cover transition-transform group-hover:rotate-12" />
             <span>SHOP ALL</span>
           </button>
 
@@ -164,7 +159,7 @@ export const Footer: React.FC = () => {
                     FOR ANY INQUIRIES, ORDER UPDATES, OR GENERAL ASSISTANCE, PLEASE CONTACT OUR SUPPORT TEAM.
                   </p>
                   <p className="text-[10px] font-mono font-bold tracking-widest text-black">
-                    EMAIL: <a href="mailto:sahakash2007777@gmail.com" className="underline hover:text-neutral-500">SAHAKASH2007777@GMAIL.COM</a>
+                    EMAIL: <a href="mailto:sasukegurung77@gmail.com" className="underline hover:text-neutral-500">SASUKEGURUNG77@GMAIL.COM</a>
                   </p>
                 </div>
                 {/* Drawer Part 2 */}
@@ -307,7 +302,7 @@ export const Footer: React.FC = () => {
           <div className="w-full flex flex-col md:flex-row justify-between items-center gap-4 text-[9px] md:text-[10px] font-mono tracking-wider text-[#999999] uppercase mt-2.5 pb-2">
             <p>© 2026 NANGSAL APPAREL. ALL RIGHTS RESERVED.</p>
             <div className="flex items-center gap-6">
-              <span>KATHMANDU & HETAUDA, NEPAL</span>
+              <span>BOUDHA, KATHMANDU, NEPAL</span>
             </div>
           </div>
 

@@ -45,6 +45,9 @@ export const Chatbot: React.FC = () => {
     if (q.includes("puffer") || q.includes("waterproof") || q.includes("rain") || q.includes("jacket")) {
       return "MATERIAL UTILITY MATRIX: NANGSAL APPAREL OUTERWEAR AND JACKETS ARE FULLY INSULATED AND PROTECTED BY PREMIUM FABRICS. HIGHLY RAIN-PROOF AND COLD-SHIELD CERTIFIED.";
     }
+    if (q.includes("restock") || q.includes("sold out") || q.includes("stock")) {
+      return "RESTOCK POLICY: NO, NOT AT ALL. NANGSAL APPAREL PRODUCES STRICTLY EXCLUSIVE LIMITED-RUN COLLECTIONS. ONCE AN ITEM SELLS OUT, IT WILL NEVER BE RESTOCKED.";
+    }
     if (q.includes("shipping") || q.includes("postage") || q.includes("deliver") || q.includes("country")) {
       return "LOGISTIC SHIPMENT STATUS: FAST COURIER DELIVERY ACROSS KATHMANDU, HETAUDA, AND ALL OVER NEPAL. INSIDE KTM: RS 120, OUTSIDE KTM: RS 200.";
     }
