@@ -359,7 +359,7 @@ export const AdminPanel: React.FC = () => {
       name: "",
       price: 0,
       images: [],
-      sizes: ["S", "M", "L", "XL"],
+      sizes: ["S", "M", "L"],
       section: "",
       category: "",
       details: [],
@@ -1605,7 +1605,11 @@ export const AdminPanel: React.FC = () => {
                 </div>
                 {siteSettings.heroImage && (
                   <div className="aspect-[16/9] bg-neutral-100 rounded-lg overflow-hidden border border-neutral-200 mt-2 max-h-48">
-                    <img src={siteSettings.heroImage} alt="Hero Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    {siteSettings.heroImage.toLowerCase().includes(".mp4") || siteSettings.heroImage.includes("/videos/") ? (
+                      <video src={siteSettings.heroImage} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                    ) : (
+                      <img src={siteSettings.heroImage} alt="Hero Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    )}
                   </div>
                 )}
               </div>

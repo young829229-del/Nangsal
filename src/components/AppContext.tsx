@@ -67,7 +67,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const DEFAULT_SETTINGS: SiteSettings = {
-  heroImage: "https://i.ibb.co/BKQYptr5/IMG-3343.jpg",
+  heroImage: "https://www.image2url.com/r2/default/videos/1785427733008-d0075094-b91b-47d2-9301-6e9921441b18.mp4",
   aboutBrandImage: "https://i.ibb.co/sv0M73GB/IMG-3339.jpg",
   aboutBrandVideo: "https://www.image2url.com/r2/default/videos/1785203915703-c3828fb3-47c3-4c99-bdf6-781f7f68f0a0.mp4",
   bankQrImage: "https://i.ibb.co/ycQVc65Q/IMG-20260727-WA0003-2.jpg",
@@ -99,13 +99,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Merge static PRODUCTS updates (such as updated image URLs) into cached products
+          // Merge static PRODUCTS updates (such as updated image URLs & sizes ["S", "M", "L"]) into cached products
           return parsed.map((p: Product) => {
             const staticMatch = PRODUCTS.find((sp) => sp.id === p.id);
             if (staticMatch) {
-              return { ...p, images: staticMatch.images };
+              return { ...p, images: staticMatch.images, sizes: staticMatch.sizes };
             }
-            return p;
+            return { ...p, sizes: ["S", "M", "L"] };
           });
         }
       }
@@ -120,7 +120,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const saved = localStorage.getItem("nangsal_site_settings");
       if (saved) {
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+        const parsed = JSON.parse(saved);
+        // If stored hero image was the old static image, update to the new video banner URL
+        if (!parsed.heroImage || parsed.heroImage === "https://i.ibb.co/BKQYptr5/IMG-3343.jpg") {
+          parsed.heroImage = DEFAULT_SETTINGS.heroImage;
+        }
+        return { ...DEFAULT_SETTINGS, ...parsed };
       }
     } catch (e) {
       console.warn("Could not load local settings:", e);

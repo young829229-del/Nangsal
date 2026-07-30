@@ -11,7 +11,7 @@ export const PRODUCTS: Product[] = [
       "https://i.ibb.co/jv4tpwyj/IMG-20260728-WA0028.jpg",
       "https://i.ibb.co/g2Hr5HR/IMG-20260728-WA0027.jpg"
     ],
-    sizes: ["XS", "S", "M", "L", "XL", "XXL"],
+    sizes: ["S", "M", "L"],
     section: "TOPS",
     category: "T-Shirts",
     imageAlt: "Nangsal Riri Oversized T-Shirt",
@@ -38,7 +38,7 @@ export const PRODUCTS: Product[] = [
       "https://user19304.na.imgto.link/public/20260730/1000066999.avif",
       "https://user19304.na.imgto.link/public/20260730/1000066995.avif"
     ],
-    sizes: ["S", "M", "L", "XL"],
+    sizes: ["S", "M", "L"],
     section: "OUTERWEAR",
     category: "Outerwear",
     imageAlt: "Nangsal Crimson Luxury Statement Outerwear",
@@ -59,7 +59,7 @@ export const PRODUCTS: Product[] = [
       "https://i.ibb.co/9Hj6f7F5/IMG-20260728-WA0017.jpg",
       "https://i.ibb.co/B2W11yyR/IMG-20260728-WA0018.jpg"
     ],
-    sizes: ["S", "M", "L", "XL"],
+    sizes: ["S", "M", "L"],
     section: "TOPS",
     category: "T-Shirts",
     imageAlt: "Nangsal Statement Graphic T-Shirt",
@@ -82,7 +82,7 @@ export const PRODUCTS: Product[] = [
       "https://i.ibb.co/BV5NR84f/snaptik-app-7648677183032003858-slide-6.jpg",
       "https://i.ibb.co/KzSkwv0V/snaptik-app-7648677183032003858-slide-3.jpg"
     ],
-    sizes: ["S", "M", "L", "XL"],
+    sizes: ["S", "M", "L"],
     section: "HOODIES",
     category: "Hoodies",
     imageAlt: "Nangsal 17 Heavyweight Hoodie",
@@ -103,7 +103,7 @@ export const PRODUCTS: Product[] = [
       "https://i.ibb.co/mrKKgZZ7/IMG-1106.jpg",
       "https://i.ibb.co/whKYxz6K/IMG-1110.png"
     ],
-    sizes: ["S", "M", "L", "XL"],
+    sizes: ["S", "M", "L"],
     section: "OUTERWEAR",
     category: "Outerwear",
     imageAlt: "Nangsal Vintage Washed Denim Jacket",

@@ -4,24 +4,39 @@ import { useApp } from "./AppContext";
 export const Hero: React.FC = () => {
   const { siteSettings } = useApp();
 
+  const isVideo = siteSettings.heroImage?.toLowerCase().includes(".mp4") || 
+                  siteSettings.heroImage?.includes("/videos/") || 
+                  siteSettings.heroImage?.toLowerCase().includes(".webm");
+
   return (
     <section
       id="hero-section"
-      className="relative w-full h-[75vh] sm:h-[82vh] md:h-[88vh] min-h-[480px] bg-neutral-900 overflow-hidden flex items-end select-none"
+      className="relative w-full h-screen h-[100dvh] bg-neutral-900 overflow-hidden flex items-end select-none"
     >
-      {/* Editorial Campaign Background Image with Grainy Raw Overlay */}
+      {/* Editorial Campaign Background Image/Video with Grainy Raw Overlay */}
       <div className="absolute inset-0 w-full h-full select-none pointer-events-none">
-        <img
-          src={siteSettings.heroImage}
-          alt="Nangsal Apparel Campaign Background"
-          className="absolute inset-0 w-full h-full object-cover object-[50%_40%] contrast-[1.01] brightness-[1.01] saturate-[1.01]"
-          style={{ 
-            imageRendering: "auto",
-            WebkitBackfaceVisibility: "hidden",
-            backfaceVisibility: "hidden"
-          }}
-          referrerPolicy="no-referrer"
-        />
+        {isVideo ? (
+          <video
+            src={siteSettings.heroImage}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover object-[50%_40%] contrast-[1.01] brightness-[1.01] saturate-[1.01]"
+          />
+        ) : (
+          <img
+            src={siteSettings.heroImage}
+            alt="Nangsal Apparel Campaign Background"
+            className="absolute inset-0 w-full h-full object-cover object-[50%_40%] contrast-[1.01] brightness-[1.01] saturate-[1.01]"
+            style={{ 
+              imageRendering: "auto",
+              WebkitBackfaceVisibility: "hidden",
+              backfaceVisibility: "hidden"
+            }}
+            referrerPolicy="no-referrer"
+          />
+        )}
 
         {/* Tactile Grain & Nostalgic Noise Texture Overlay */}
         <div 
