@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useApp } from "./AppContext";
 import { motion, AnimatePresence } from "motion/react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const LOOKBOOK_HIGHLIGHTS = [
   {
@@ -71,7 +72,7 @@ export const LookbookBanner: React.FC = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.35 }}
-                className="max-h-[90%] max-w-[90%] object-contain mix-blend-multiply"
+                className="max-h-[90%] max-w-[90%] object-contain"
                 referrerPolicy="no-referrer"
               />
             </AnimatePresence>
@@ -82,12 +83,28 @@ export const LookbookBanner: React.FC = () => {
             </div>
 
             {/* Quick left/right navigators */}
-            <div className="absolute inset-y-0 left-0 w-12 hover:bg-neutral-500/5 transition-colors cursor-pointer flex items-center justify-center text-black font-mono text-lg font-black" onClick={() => setActiveIdx((prev) => (prev > 0 ? prev - 1 : LOOKBOOK_HIGHLIGHTS.length - 1))}>
-              ‹
-            </div>
-            <div className="absolute inset-y-0 right-0 w-12 hover:bg-neutral-500/5 transition-colors cursor-pointer flex items-center justify-center text-black font-mono text-lg font-black" onClick={() => setActiveIdx((prev) => (prev < LOOKBOOK_HIGHLIGHTS.length - 1 ? prev + 1 : 0))}>
-              ›
-            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveIdx((prev) => (prev > 0 ? prev - 1 : LOOKBOOK_HIGHLIGHTS.length - 1));
+              }}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-black border border-neutral-200 flex items-center justify-center shadow-md transition-all z-20 cursor-pointer active:scale-90"
+              aria-label="Previous slide"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveIdx((prev) => (prev < LOOKBOOK_HIGHLIGHTS.length - 1 ? prev + 1 : 0));
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-black border border-neutral-200 flex items-center justify-center shadow-md transition-all z-20 cursor-pointer active:scale-90"
+              aria-label="Next slide"
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
 
           {/* Right Side: Technical details, spec switching, tabs info */}

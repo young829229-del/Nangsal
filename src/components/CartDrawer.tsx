@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useApp } from "./AppContext";
-import { X, Plus, Minus, Trash2, ArrowRight, ShoppingBag, Gift, CheckCircle2, ShieldCheck, Lock, Sparkles, Check, CreditCard, Clock } from "lucide-react";
+import { X, Plus, Minus, Trash2, ArrowRight, ShoppingBag, Gift, CheckCircle2, ShieldCheck, Lock, Sparkles, Check, CreditCard, Clock, Search, MapPin, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { NEPAL_CITIES, getCityDeliveryCharge, isInsideKathmanduValley } from "../data/cities";
 
 import { QRCodeSVG } from "qrcode.react";
 
@@ -34,6 +35,11 @@ export const CartDrawer: React.FC = () => {
   // Detailed full address fields
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
+
+  // City search & dropdown filter states
+  const [citySearchQuery, setCitySearchQuery] = useState("");
+  const [isCitySearchOpen, setIsCitySearchOpen] = useState(false);
+  const [selectedCityCategory, setSelectedCityCategory] = useState<"ALL" | "VALLEY" | "MAJOR" | "REMOTE">("ALL");
 
   // Authorization progress animation states
   const [authStepMessage, setAuthStepMessage] = useState("CONNECTING TO SECURE PAYMENT GATEWAY...");
@@ -78,8 +84,13 @@ export const CartDrawer: React.FC = () => {
     return city ? `${address.trim()}, ${city.trim()}` : address.trim();
   };
 
-  const isInsideKtm = city.toLowerCase().includes("kathmandu") || city.toLowerCase().includes("ktm") || city.toLowerCase().includes("lalitpur") || city.toLowerCase().includes("bhaktapur") || address.toLowerCase().includes("kathmandu") || address.toLowerCase().includes("ktm") || address.toLowerCase().includes("lalitpur") || address.toLowerCase().includes("bhaktapur");
-  const deliveryCharge = isInsideKtm ? (siteSettings?.deliveryInsideKtm ?? 120) : (siteSettings?.deliveryOutsideKtm ?? 200);
+  const isInsideKtm = isInsideKathmanduValley(city, address);
+  const deliveryCharge = getCityDeliveryCharge(
+    city,
+    address,
+    siteSettings?.deliveryInsideKtm ?? 100,
+    siteSettings?.deliveryOutsideKtm ?? 150
+  );
 
   const calculateSubtotal = () => {
     return cart.reduce((total, item) => total + (item.product.price * item.quantity), 0);
@@ -408,33 +419,196 @@ export const CartDrawer: React.FC = () => {
                             className="w-full border border-gray-200 bg-white px-3 py-1.5 text-[10px] font-mono tracking-widest uppercase focus:outline-none focus:border-black rounded-sm"
                           />
                         </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[9px] font-mono tracking-widest text-gray-400 uppercase">
-                            CITY *
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={city}
-                            onChange={(e) => setCity(e.target.value)}
-                            list="janakpur-cities"
-                            placeholder="ENTER CITY"
-                            className="w-full border border-gray-200 bg-white px-2 py-1.5 text-[10px] font-mono tracking-widest uppercase focus:outline-none focus:border-black rounded-sm"
-                          />
-                          <datalist id="janakpur-cities">
-                            <option value="Janakpur">Janakpur</option>
-                            <option value="Dhalkebar">Dhalkebar</option>
-                            <option value="Mahendranagar">Mahendranagar</option>
-                            <option value="Bateshwar">Bateshwar</option>
-                            <option value="Sabaila">Sabaila</option>
-                            <option value="Yadukuha">Yadukuha</option>
-                            <option value="Jaleshwar">Jaleshwar</option>
-                            <option value="Bardibas">Bardibas</option>
-                            <option value="Ramanand Chowk">Ramanand Chowk</option>
-                            <option value="Bhanu Chowk">Bhanu Chowk</option>
-                            <option value="Shiva Chowk">Shiva Chowk</option>
-                            <option value="Mujelia">Mujelia</option>
-                          </datalist>
+
+                        <div className="space-y-1.5 relative">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[9px] font-mono tracking-widest text-gray-400 uppercase">
+                              CITY *
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCitySearchQuery("");
+                                setIsCitySearchOpen(!isCitySearchOpen);
+                              }}
+                              className="text-[8px] font-mono font-bold tracking-wider text-black bg-neutral-100 hover:bg-neutral-200 px-1.5 py-0.5 rounded flex items-center gap-0.5 cursor-pointer uppercase transition-colors"
+                            >
+                              <Search size={9} />
+                              <span>SEARCH</span>
+                            </button>
+                          </div>
+
+                          <div className="relative">
+                            <input
+                              type="text"
+                              required
+                              value={city}
+                              onChange={(e) => setCity(e.target.value)}
+                              onFocus={() => setIsCitySearchOpen(true)}
+                              placeholder="ENTER OR SEARCH CITY"
+                              className="w-full border border-gray-200 bg-white px-2 py-1.5 text-[10px] font-mono tracking-widest uppercase focus:outline-none focus:border-black rounded-sm pr-7"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setIsCitySearchOpen(!isCitySearchOpen)}
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-black p-0.5 cursor-pointer"
+                            >
+                              <ChevronDown size={12} />
+                            </button>
+                          </div>
+
+                          {/* Searchable City Selection Modal / Popover */}
+                          <AnimatePresence>
+                            {isCitySearchOpen && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 5 }}
+                                className="absolute right-0 top-full mt-1 w-[280px] sm:w-[320px] bg-white border border-neutral-300 rounded-xl shadow-2xl p-3 z-50 text-left font-mono"
+                              >
+                                <div className="flex items-center justify-between border-b border-neutral-100 pb-2 mb-2">
+                                  <span className="text-[10px] font-black tracking-widest text-black uppercase flex items-center gap-1">
+                                    <MapPin size={11} className="text-black" />
+                                    <span>SELECT DELIVERY CITY</span>
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsCitySearchOpen(false)}
+                                    className="text-neutral-400 hover:text-black p-1 cursor-pointer"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </div>
+
+                                {/* Search Bar Input */}
+                                <div className="relative mb-2">
+                                  <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                                  <input
+                                    type="text"
+                                    autoFocus
+                                    value={citySearchQuery}
+                                    onChange={(e) => setCitySearchQuery(e.target.value)}
+                                    placeholder="Search city (e.g. Kathmandu, Pokhara, Janakpur)..."
+                                    className="w-full pl-7 pr-3 py-1.5 bg-neutral-50 border border-neutral-200 rounded-lg text-[10px] font-mono focus:outline-none focus:border-black focus:bg-white"
+                                  />
+                                </div>
+
+                                {/* Category Quick Filter Tabs */}
+                                <div className="flex items-center gap-1 overflow-x-auto pb-2 mb-2 no-scrollbar text-[8px] font-bold uppercase">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedCityCategory("ALL")}
+                                    className={`px-2 py-1 rounded transition-all shrink-0 cursor-pointer ${
+                                      selectedCityCategory === "ALL" ? "bg-black text-white" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                                    }`}
+                                  >
+                                    ALL CITIES
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedCityCategory("VALLEY")}
+                                    className={`px-2 py-1 rounded transition-all shrink-0 cursor-pointer ${
+                                      selectedCityCategory === "VALLEY" ? "bg-black text-white" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                                    }`}
+                                  >
+                                    VALLEY (RS. 100)
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedCityCategory("MAJOR")}
+                                    className={`px-2 py-1 rounded transition-all shrink-0 cursor-pointer ${
+                                      selectedCityCategory === "MAJOR" ? "bg-black text-white" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                                    }`}
+                                  >
+                                    OUTSIDE (RS. 150)
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedCityCategory("REMOTE")}
+                                    className={`px-2 py-1 rounded transition-all shrink-0 cursor-pointer ${
+                                      selectedCityCategory === "REMOTE" ? "bg-black text-white" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                                    }`}
+                                  >
+                                    OUTER (RS. 200)
+                                  </button>
+                                </div>
+
+                                {/* Scrollable List of Cities */}
+                                <div className="max-h-[180px] overflow-y-auto space-y-1 divide-y divide-neutral-50 pr-1">
+                                  {NEPAL_CITIES.filter((item) => {
+                                    if (selectedCityCategory === "VALLEY" && item.region !== "Inside Valley") return false;
+                                    if (selectedCityCategory === "MAJOR" && (item.region !== "Outside Valley" || item.charge !== 150)) return false;
+                                    if (selectedCityCategory === "REMOTE" && (item.region !== "Outside Valley" || item.charge !== 200)) return false;
+
+                                    if (!citySearchQuery.trim()) return true;
+                                    const q = citySearchQuery.trim().toLowerCase();
+                                    return (
+                                      item.name.toLowerCase().includes(q) ||
+                                      (item.district && item.district.toLowerCase().includes(q)) ||
+                                      item.region.toLowerCase().includes(q) ||
+                                      `rs. ${item.charge}`.includes(q)
+                                    );
+                                  }).map((item) => (
+                                    <button
+                                      key={item.name}
+                                      type="button"
+                                      onClick={() => {
+                                        setCity(item.name);
+                                        setIsCitySearchOpen(false);
+                                      }}
+                                      className="w-full text-left py-1.5 px-2 hover:bg-neutral-100 rounded flex items-center justify-between transition-colors cursor-pointer group"
+                                    >
+                                      <div>
+                                        <p className="text-[10px] font-extrabold text-black uppercase group-hover:text-black">
+                                          {item.name}
+                                        </p>
+                                        <p className="text-[8px] text-neutral-400 font-normal uppercase">
+                                          {item.district ? `${item.district} District • ` : ""}{item.region}
+                                        </p>
+                                      </div>
+                                      <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                                        item.charge === 100
+                                          ? "bg-emerald-100 text-emerald-800"
+                                          : item.charge === 150
+                                          ? "bg-blue-100 text-blue-800"
+                                          : "bg-purple-100 text-purple-800"
+                                      }`}>
+                                        RS. {item.charge}
+                                      </span>
+                                    </button>
+                                  ))}
+
+                                  {NEPAL_CITIES.filter((item) => {
+                                    if (selectedCityCategory === "VALLEY" && item.region !== "Inside Valley") return false;
+                                    if (selectedCityCategory === "MAJOR" && (item.region !== "Outside Valley" || item.charge !== 150)) return false;
+                                    if (selectedCityCategory === "REMOTE" && (item.region !== "Outside Valley" || item.charge !== 200)) return false;
+
+                                    if (!citySearchQuery.trim()) return true;
+                                    const q = citySearchQuery.trim().toLowerCase();
+                                    return (
+                                      item.name.toLowerCase().includes(q) ||
+                                      (item.district && item.district.toLowerCase().includes(q)) ||
+                                      item.region.toLowerCase().includes(q)
+                                    );
+                                  }).length === 0 && (
+                                    <div className="py-3 text-center text-[9px] text-neutral-400">
+                                      No preset match found for "{citySearchQuery}".
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setCity(citySearchQuery.toUpperCase());
+                                          setIsCitySearchOpen(false);
+                                        }}
+                                        className="block mx-auto mt-1 text-[9px] font-bold text-black underline cursor-pointer"
+                                      >
+                                        Use "{citySearchQuery.toUpperCase()}" anyway
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       </div>
 

@@ -97,22 +97,12 @@ const AppContent: React.FC = () => {
               <ProductGrid />
             </div>
           ) : (
-            <div className="w-full">
-              {/* STICKY HERO WRAPPER FOR SHUTTER SLIDE REVEAL */}
-              <div className="relative w-full">
-                {/* Sticky viewport-locked Hero */}
-                <div className="md:sticky md:top-0 w-full z-0 overflow-hidden" style={{ height: heroHeight }}>
-                  <Hero />
-                </div>
-
-                {/* Shutter physical content section */}
-                <div className="relative z-10 bg-white border-t-0 md:border-t-[8px] border-black shadow-none md:shadow-[0_-30px_60px_rgba(0,0,0,0.2)]">
-                  <MoreThanClothesBanner />
-                  <BrandStatement />
-                  <ProductGrid />
-                  <StudioSpecs />
-                </div>
-              </div>
+            <div className="w-full pt-[78px] md:pt-[90px]">
+              <Hero />
+              <MoreThanClothesBanner />
+              <BrandStatement />
+              <ProductGrid />
+              <StudioSpecs />
             </div>
           )}
         </main>

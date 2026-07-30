@@ -3,12 +3,14 @@ import { useApp } from "./AppContext";
 import { 
   Lock, Unlock, Plus, Trash2, Image as ImageIcon, Tag, Undo, LogIn, LogOut, 
   Settings, User, CheckCircle2, AlertCircle, Calendar, DollarSign, MapPin, 
-  Phone, RefreshCw, Layers, Eye, Mail, Key, Save, ChevronDown, ChevronUp, ShieldCheck, X
+  Phone, RefreshCw, Layers, Eye, Mail, Key, Save, ChevronDown, ChevronUp, ShieldCheck, X,
+  Search, Filter, Check, Clock, ExternalLink
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { ProductCard } from "./ProductCard";
 import { Product } from "../types";
+import { isInsideKathmanduValley } from "../data/cities";
 
 export const AdminPanel: React.FC = () => {
   const { 
@@ -33,6 +35,10 @@ export const AdminPanel: React.FC = () => {
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [activeSubTab, setActiveSubTab] = useState<"PRODUCTS" | "ORDERS" | "SETTINGS">("PRODUCTS");
   const [orderDateFilter, setOrderDateFilter] = useState<"today" | "3days" | "7days" | "1month" | "lifetime">("lifetime");
+  const [orderPaymentFilter, setOrderPaymentFilter] = useState<"ALL" | "VERIFIED" | "PENDING">("ALL");
+  const [orderLocationFilter, setOrderLocationFilter] = useState<"ALL" | "VALLEY" | "OUTSIDE">("ALL");
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>("ALL");
+  const [orderSearchQuery, setOrderSearchQuery] = useState<string>("");
   const [expandedOrders, setExpandedOrders] = useState<string[]>([]);
   const [selectedScreenshotModal, setSelectedScreenshotModal] = useState<string | null>(null);
   const [adminAuthError, setAdminAuthError] = useState<string>("");
@@ -47,7 +53,7 @@ export const AdminPanel: React.FC = () => {
 
   const allowedAdminEmails = (siteSettings.allowedAdminEmails && siteSettings.allowedAdminEmails.length > 0)
     ? siteSettings.allowedAdminEmails
-    : ["young829229@gmail.com", "sasukegurung77@gmail.com", "comodevs@gmail.com", "sahakash2007777@gmail.com", "ghalanbinod4@gmail.com"];
+    : ["sasukegurung77@gmail.com", "sasukegurunq55@gmail.com", "young82783@gmail.com", "young829229@gmail.com"];
 
   const isGoogleUserAdmin = Boolean(
     user?.email && allowedAdminEmails.some(e => e.trim().toLowerCase() === user.email.trim().toLowerCase())
@@ -76,6 +82,29 @@ export const AdminPanel: React.FC = () => {
     } catch (err: any) {
       console.error("Failed to update order status:", err);
       alert("Error updating status: " + err.message);
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  };
+
+  const updatePaymentStatus = async (orderId: string, newPaymentStatus: "VERIFIED" | "PENDING") => {
+    try {
+      setUpdatingOrderId(orderId);
+      const saved = localStorage.getItem("slimhood_guest_orders");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const updated = parsed.map((o: any) => 
+          o.id === orderId ? { ...o, paymentStatus: newPaymentStatus, paymentVerified: newPaymentStatus === "VERIFIED" } : o
+        );
+        localStorage.setItem("slimhood_guest_orders", JSON.stringify(updated));
+        setOrders(updated);
+      } else {
+        setOrders(prev => prev.map(o => 
+          o.id === orderId ? { ...o, paymentStatus: newPaymentStatus, paymentVerified: newPaymentStatus === "VERIFIED" } : o
+        ));
+      }
+    } catch (err: any) {
+      console.error("Failed to update payment status:", err);
     } finally {
       setUpdatingOrderId(null);
     }
@@ -482,15 +511,31 @@ export const AdminPanel: React.FC = () => {
     const handleLoginSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       setAdminAuthError("");
-      if (
-        (adminUsername.trim().toLowerCase() === "slimhood" && adminPassword === "Slimhood@SecureAdmin2026!") ||
-        adminPassword === "8888" ||
-        adminPassword === "admin"
-      ) {
+      const inputEmail = adminUsername.trim().toLowerCase();
+      const inputPass = adminPassword.trim();
+
+      if (!inputEmail) {
+        setAdminAuthError("PLEASE ENTER YOUR AUTHORIZED ADMIN EMAIL.");
+        return;
+      }
+
+      const isAllowed = allowedAdminEmails.some(e => e.trim().toLowerCase() === inputEmail);
+      if (!isAllowed) {
+        setAdminAuthError(`ACCESS DENIED: ${inputEmail} is not authorized for Admin access.`);
+        return;
+      }
+
+      if (inputPass === "sunil@123") {
+        const localUser = {
+          uid: `admin_${Date.now()}`,
+          email: inputEmail,
+          displayName: inputEmail.split("@")[0]
+        };
         sessionStorage.setItem("nangsal_admin_logged_in", "true");
+        localStorage.setItem("nangsal_local_user", JSON.stringify(localUser));
         setIsLoggedInAdmin(true);
       } else {
-        setAdminAuthError("INVALID OPERATOR CREDENTIALS. FIREWALL LOGGED ACCESS ATTEMPT.");
+        setAdminAuthError("INVALID PASSWORD. ACCESS DENIED.");
       }
     };
 
@@ -522,17 +567,17 @@ export const AdminPanel: React.FC = () => {
         </div>
         
         <h2 className="text-xl font-mono tracking-[0.25em] text-center font-black uppercase mb-2">
-          OPERATOR ACCESS SHELL
+          ADMIN ACCESS PANEL
         </h2>
         <p className="text-[10px] font-mono tracking-wider text-neutral-400 text-center uppercase max-w-sm mb-10 leading-relaxed">
-          NANGSAL SECURITY TERMINAL. SIGN IN WITH AN AUTHORIZED ADMIN GMAIL OR ENTER OPERATOR PIN.
+          NANGSAL SECURITY TERMINAL. SIGN IN WITH GOOGLE OR ENTER AUTHORIZED ADMIN EMAIL & PASSWORD.
         </p>
 
         <div className="w-full max-w-md bg-white border border-neutral-200 rounded-2xl p-8 shadow-lg space-y-6">
           {/* Primary Google Login Button */}
           <div className="space-y-3">
             <label className="block text-[10px] font-mono font-bold tracking-widest text-neutral-500 uppercase text-center">
-              AUTHORIZED GMAIL AUTHENTICATION
+              OPTION 1: GOOGLE LOGIN
             </label>
 
             <button
@@ -556,7 +601,7 @@ export const AdminPanel: React.FC = () => {
                   CURRENT GMAIL: <span className="underline">{user.email}</span>
                 </p>
                 <p className="text-[10px] font-mono text-rose-700 leading-tight">
-                  This Gmail is NOT authorized to access Admin Panel. Please sign in with an authorized Admin Gmail address.
+                  This Gmail is NOT authorized for Admin access.
                 </p>
                 <button
                   type="button"
@@ -570,92 +615,48 @@ export const AdminPanel: React.FC = () => {
 
             {googleLoginError && (
               <div className="text-[10px] font-mono text-red-600 bg-red-50 border border-red-200 p-3 rounded-lg text-center leading-relaxed">
-                <p className="font-bold uppercase mb-1">{googleLoginError}</p>
-                {(googleLoginError.includes("unauthorized-domain") || googleLoginError.includes("configuration-not-found") || googleLoginError.includes("domain")) && (
-                  <p className="text-[9px] text-neutral-600 normal-case mt-1">
-                    Tip: You can log in directly by entering your authorized Gmail address (<span className="font-mono font-bold">young829229@gmail.com</span> or <span className="font-mono font-bold">sasukegurung77@gmail.com</span>) in the field below, or add this domain in Firebase Console under Authentication &gt; Settings &gt; Authorized Domains.
-                  </p>
-                )}
+                <p className="font-bold uppercase">{googleLoginError}</p>
               </div>
             )}
-
-            {/* Direct Authorized Gmail Form Fallback */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setGoogleLoginError("");
-                const inputEmail = ((e.currentTarget.elements.namedItem("directAdminEmail") as HTMLInputElement)?.value || "").trim().toLowerCase();
-                if (!inputEmail) {
-                  setGoogleLoginError("Please enter your authorized admin Gmail address.");
-                  return;
-                }
-                const isAllowed = allowedAdminEmails.some(e => e.trim().toLowerCase() === inputEmail);
-                if (!isAllowed) {
-                  setGoogleLoginError(`ACCESS DENIED: ${inputEmail} is not authorized for Admin access.`);
-                  return;
-                }
-                // Log in directly with this authorized admin email
-                const localUser = {
-                  uid: `admin_${Date.now()}`,
-                  email: inputEmail,
-                  displayName: inputEmail.split("@")[0]
-                };
-                sessionStorage.setItem("nangsal_admin_logged_in", "true");
-                localStorage.setItem("nangsal_local_user", JSON.stringify(localUser));
-                window.location.reload();
-              }}
-              className="space-y-2 pt-2 border-t border-neutral-100"
-            >
-              <label className="block text-[9px] font-mono font-bold tracking-widest text-neutral-400 uppercase">
-                DIRECT AUTHORIZED GMAIL ACCESS
-              </label>
-              <div className="flex gap-2">
-                <input
-                  name="directAdminEmail"
-                  type="email"
-                  placeholder="e.g. comodevs@gmail.com"
-                  className="flex-1 px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-xs font-mono focus:outline-none focus:border-black focus:bg-white"
-                />
-                <button
-                  type="submit"
-                  className="bg-neutral-900 text-white text-[10px] font-mono font-bold px-4 py-2 rounded-lg hover:bg-black uppercase cursor-pointer transition-colors"
-                >
-                  VERIFY & ENTER
-                </button>
-              </div>
-            </form>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 my-2">
             <div className="h-px bg-neutral-200 flex-1"></div>
-            <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-widest">OR OPERATOR PIN</span>
+            <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-widest font-bold">OR</span>
             <div className="h-px bg-neutral-200 flex-1"></div>
           </div>
 
+          {/* Option 2: Email & Password Form */}
           <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <label className="block text-[10px] font-mono font-bold tracking-widest text-neutral-500 uppercase text-center mb-1">
+              OPTION 2: EMAIL & PASSWORD LOGIN
+            </label>
+
             <div>
               <label className="block text-[10px] font-mono font-bold tracking-widest text-neutral-500 uppercase mb-1.5">
-                OPERATOR USERNAME / ID
+                ADMIN EMAIL ADDRESS
               </label>
               <input
-                type="text"
-                placeholder="e.g. slimhood"
+                type="email"
+                required
+                placeholder="e.g. sasukegurung77@gmail.com"
                 value={adminUsername}
                 onChange={(e) => setAdminUsername(e.target.value)}
-                className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-lg text-xs font-mono focus:outline-none focus:border-black focus:bg-white"
+                className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-lg text-xs font-mono focus:outline-none focus:border-black focus:bg-white transition-all"
               />
             </div>
 
             <div>
               <label className="block text-[10px] font-mono font-bold tracking-widest text-neutral-500 uppercase mb-1.5">
-                SECURITY PASSWORD / PIN (Default: 8888)
+                PASSWORD
               </label>
               <input
                 type="password"
-                placeholder="Enter password or 8888"
+                required
+                placeholder="Enter password"
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-lg text-xs font-mono focus:outline-none focus:border-black focus:bg-white"
+                className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-lg text-xs font-mono focus:outline-none focus:border-black focus:bg-white transition-all"
               />
             </div>
 
@@ -664,18 +665,18 @@ export const AdminPanel: React.FC = () => {
               className="w-full bg-black hover:bg-neutral-800 text-white font-mono text-xs font-extrabold tracking-widest py-3.5 rounded-lg uppercase flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
             >
               <LogIn size={14} />
-              <span>AUTHENTICATE TERMINAL</span>
+              <span>AUTHENTICATE ADMIN</span>
             </button>
           </form>
 
           {adminAuthError && (
-            <div className="text-[10px] font-mono text-red-600 bg-red-50 border border-red-200 p-3 rounded-lg text-center uppercase">
+            <div className="text-[10px] font-mono text-red-600 bg-red-50 border border-red-200 p-3 rounded-lg text-center font-bold uppercase">
               {adminAuthError}
             </div>
           )}
 
-          <div className="text-[10px] font-mono text-center text-neutral-400 border-t border-neutral-100 pt-4">
-            PROTECTED BY FIREWALL & GOOGLE OAUTH SECURITY
+          <div className="text-[10px] font-mono text-center text-neutral-400 border-t border-neutral-100 pt-4 uppercase">
+            PROTECTED BY GOOGLE OAUTH & ADMIN EMAIL SECURITY
           </div>
         </div>
 
@@ -875,31 +876,186 @@ export const AdminPanel: React.FC = () => {
       {/* SUB TAB 2: AUDITED ORDERS HISTORY */}
       {activeSubTab === "ORDERS" && (
         <div className="space-y-6 animate-fade-in">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b pb-3 mb-4 gap-3">
-            <div className="flex flex-col">
-              <span className="text-[11px] font-mono tracking-widest text-[#767676] uppercase mb-2">
-                REAL-TIME TRANSACTION LEDGER LIST WITH CUSTOMER INFORMATION
-              </span>
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full hide-scrollbar">
+          {/* Header & Main Controls */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between border-b pb-4 mb-4 gap-4">
+            <div>
+              <h3 className="text-base font-black tracking-widest text-black uppercase flex items-center gap-2">
+                <Layers size={18} />
+                <span>INCOMING ORDERS & TRANSACTIONS LEDGER</span>
+              </h3>
+              <p className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase mt-0.5">
+                REAL-TIME AUDITED FLIGHT LOGS • FILTER BY PAYMENT VERIFICATION & LOCATION
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => fetchOrdersFromBackend(false)}
+                disabled={isLoadingOrders || isRefreshingOrders}
+                className="text-[10px] font-mono font-bold tracking-widest bg-neutral-900 hover:bg-black text-white px-3 py-2 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer shrink-0"
+              >
+                <RefreshCw size={12} className={`${(isLoadingOrders || isRefreshingOrders) ? 'animate-spin text-emerald-400' : ''}`} />
+                <span>REFRESH FEED</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Filter Control Toolbar */}
+          <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200 space-y-3 font-mono text-[10px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Filter 1: Payment Status (Verified / Pending) */}
+              <div>
+                <label className="text-[9px] font-bold text-neutral-400 uppercase block mb-1">
+                  PAYMENT VERIFICATION
+                </label>
+                <div className="flex items-center gap-1 bg-white p-1 border border-neutral-200 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setOrderPaymentFilter("ALL")}
+                    className={`flex-1 py-1 px-1.5 rounded text-[9px] font-bold uppercase transition-colors cursor-pointer ${
+                      orderPaymentFilter === "ALL" ? "bg-black text-white" : "text-neutral-600 hover:bg-neutral-100"
+                    }`}
+                  >
+                    ALL ({orders.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOrderPaymentFilter("VERIFIED")}
+                    className={`flex-1 py-1 px-1.5 rounded text-[9px] font-bold uppercase transition-colors cursor-pointer flex items-center justify-center gap-0.5 ${
+                      orderPaymentFilter === "VERIFIED" ? "bg-emerald-600 text-white" : "text-emerald-700 hover:bg-emerald-50"
+                    }`}
+                  >
+                    <CheckCircle2 size={10} />
+                    <span>VERIFIED</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOrderPaymentFilter("PENDING")}
+                    className={`flex-1 py-1 px-1.5 rounded text-[9px] font-bold uppercase transition-colors cursor-pointer flex items-center justify-center gap-0.5 ${
+                      orderPaymentFilter === "PENDING" ? "bg-amber-500 text-white" : "text-amber-800 hover:bg-amber-50"
+                    }`}
+                  >
+                    <Clock size={10} />
+                    <span>PENDING</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Filter 2: Location (Valley / Outside) */}
+              <div>
+                <label className="text-[9px] font-bold text-neutral-400 uppercase block mb-1">
+                  LOCATION REGION
+                </label>
+                <div className="flex items-center gap-1 bg-white p-1 border border-neutral-200 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setOrderLocationFilter("ALL")}
+                    className={`flex-1 py-1 px-1.5 rounded text-[9px] font-bold uppercase transition-colors cursor-pointer ${
+                      orderLocationFilter === "ALL" ? "bg-black text-white" : "text-neutral-600 hover:bg-neutral-100"
+                    }`}
+                  >
+                    ALL REGIONS
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOrderLocationFilter("VALLEY")}
+                    className={`flex-1 py-1 px-1.5 rounded text-[9px] font-bold uppercase transition-colors cursor-pointer ${
+                      orderLocationFilter === "VALLEY" ? "bg-indigo-600 text-white" : "text-indigo-700 hover:bg-indigo-50"
+                    }`}
+                  >
+                    IN VALLEY
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOrderLocationFilter("OUTSIDE")}
+                    className={`flex-1 py-1 px-1.5 rounded text-[9px] font-bold uppercase transition-colors cursor-pointer ${
+                      orderLocationFilter === "OUTSIDE" ? "bg-purple-600 text-white" : "text-purple-700 hover:bg-purple-50"
+                    }`}
+                  >
+                    OUTSIDE
+                  </button>
+                </div>
+              </div>
+
+              {/* Filter 3: Order Progress Status */}
+              <div>
+                <label className="text-[9px] font-bold text-neutral-400 uppercase block mb-1">
+                  ORDER STATUS
+                </label>
+                <select
+                  value={orderStatusFilter}
+                  onChange={(e) => setOrderStatusFilter(e.target.value)}
+                  className="w-full bg-white border border-neutral-200 py-1.5 px-2.5 rounded-lg text-[10px] font-bold uppercase focus:outline-none focus:border-black cursor-pointer"
+                >
+                  <option value="ALL">ALL STATUSES</option>
+                  <option value="PENDING">PENDING</option>
+                  <option value="PROCESSING">PROCESSING</option>
+                  <option value="SHIPPED">SHIPPED</option>
+                  <option value="DELIVERED">DELIVERED</option>
+                  <option value="CANCELLED">CANCELLED</option>
+                </select>
+              </div>
+
+              {/* Filter 4: Search Input */}
+              <div>
+                <label className="text-[9px] font-bold text-neutral-400 uppercase block mb-1">
+                  SEARCH ORDER / CUSTOMER
+                </label>
+                <div className="relative">
+                  <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                  <input
+                    type="text"
+                    value={orderSearchQuery}
+                    onChange={(e) => setOrderSearchQuery(e.target.value)}
+                    placeholder="Name, Phone, City, Order ID..."
+                    className="w-full pl-7 pr-3 py-1.5 bg-white border border-neutral-200 rounded-lg text-[10px] focus:outline-none focus:border-black"
+                  />
+                  {orderSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setOrderSearchQuery("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-black cursor-pointer"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Date Quick Filter Pills */}
+            <div className="flex items-center justify-between border-t border-neutral-200/60 pt-2.5">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                <span className="text-[9px] text-neutral-400 font-bold uppercase mr-1">TIME RANGE:</span>
                 {["today", "3days", "7days", "1month", "lifetime"].map(filter => (
                   <button
                     key={filter}
                     onClick={() => setOrderDateFilter(filter as any)}
-                    className={`px-3 py-1.5 text-[9px] font-mono tracking-widest uppercase rounded-md whitespace-nowrap transition-colors cursor-pointer ${orderDateFilter === filter ? "bg-black text-white" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-black"}`}
+                    className={`px-2.5 py-1 text-[9px] font-bold uppercase rounded transition-colors cursor-pointer ${
+                      orderDateFilter === filter ? "bg-black text-white" : "bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-100"
+                    }`}
                   >
-                    {filter === "lifetime" ? "ALL" : filter.replace("days", " DAYS").replace("month", " MONTH")}
+                    {filter === "lifetime" ? "ALL TIME" : filter.replace("days", " DAYS").replace("month", " 1 MONTH")}
                   </button>
                 ))}
               </div>
+
+              {(orderPaymentFilter !== "ALL" || orderLocationFilter !== "ALL" || orderStatusFilter !== "ALL" || orderSearchQuery || orderDateFilter !== "lifetime") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOrderPaymentFilter("ALL");
+                    setOrderLocationFilter("ALL");
+                    setOrderStatusFilter("ALL");
+                    setOrderSearchQuery("");
+                    setOrderDateFilter("lifetime");
+                  }}
+                  className="text-[9px] font-bold text-rose-600 hover:underline uppercase shrink-0"
+                >
+                  RESET FILTERS
+                </button>
+              )}
             </div>
-            <button 
-              onClick={() => fetchOrdersFromBackend(false)}
-              disabled={isLoadingOrders || isRefreshingOrders}
-              className="text-[10px] font-mono font-bold tracking-widest text-black flex items-center gap-1.5 hover:text-neutral-500 transition-colors disabled:opacity-50 cursor-pointer shrink-0 mt-2 md:mt-0"
-            >
-              <RefreshCw size={10} className={`${(isLoadingOrders || isRefreshingOrders) ? 'animate-spin' : ''} text-neutral-400`} />
-              <span>LIVE FEED RECORD</span>
-            </button>
           </div>
 
           {ordersError && (
@@ -925,12 +1081,10 @@ export const AdminPanel: React.FC = () => {
                 THE LEDGER IS CURRENTLY BLANK. ORDERS PLACED ON THE FRONTEND BY GUESTS OR LOGGED-IN ACCOUNTS WILL AUTOMATICALLY SYNC AND APPEAR HERE IN REAL-TIME.
               </p>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {orders.filter(o => {
-                if (o.status === "CANCELLED") return false;
-                if (orderDateFilter === "lifetime") return true;
-                
+          ) : (() => {
+            // Filter orders list
+            const filteredOrders = orders.filter((o) => {
+              if (orderDateFilter !== "lifetime") {
                 let orderDate = new Date();
                 if (o.createdAt) {
                   orderDate = o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
@@ -938,318 +1092,460 @@ export const AdminPanel: React.FC = () => {
                 const diffTime = Math.abs(new Date().getTime() - orderDate.getTime());
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 
-                if (orderDateFilter === "today") return diffDays <= 1;
-                if (orderDateFilter === "3days") return diffDays <= 3;
-                if (orderDateFilter === "7days") return diffDays <= 7;
-                if (orderDateFilter === "1month") return diffDays <= 30;
-                return true;
-              }).map((order, orderIdx) => {
-                const dateString = order.createdAt 
-                  ? (order.createdAt.toDate ? order.createdAt.toDate().toLocaleString() : new Date(order.createdAt).toLocaleString())
-                  : "GUEST SYSTEM TIME";
+                if (orderDateFilter === "today" && diffDays > 1) return false;
+                if (orderDateFilter === "3days" && diffDays > 3) return false;
+                if (orderDateFilter === "7days" && diffDays > 7) return false;
+                if (orderDateFilter === "1month" && diffDays > 30) return false;
+              }
 
-                const orderId = order.id || `G${orderIdx}`;
-                const isExpanded = expandedOrders.includes(orderId);
+              // Payment Status
+              const isVerified = Boolean(
+                o.paymentStatus === "VERIFIED" || 
+                o.paymentVerified === true ||
+                o.status === "DELIVERED" || 
+                o.status === "SHIPPED"
+              );
+              if (orderPaymentFilter === "VERIFIED" && !isVerified) return false;
+              if (orderPaymentFilter === "PENDING" && isVerified) return false;
 
-                return (
-                  <div 
-                    key={orderId}
-                    className="border border-neutral-200 hover:border-black rounded-xl bg-white p-3 md:p-4 transition-all shadow-xs relative overflow-hidden"
+              // Location Region
+              const inValley = isInsideKathmanduValley(o.city || "", o.address || "");
+              if (orderLocationFilter === "VALLEY" && !inValley) return false;
+              if (orderLocationFilter === "OUTSIDE" && inValley) return false;
+
+              // Order Status
+              if (orderStatusFilter !== "ALL" && (o.status || "PENDING") !== orderStatusFilter) return false;
+
+              // Search query
+              if (orderSearchQuery.trim()) {
+                const q = orderSearchQuery.toLowerCase().trim();
+                const match = 
+                  (o.id && o.id.toLowerCase().includes(q)) ||
+                  (o.name && o.name.toLowerCase().includes(q)) ||
+                  (o.phone && o.phone.toLowerCase().includes(q)) ||
+                  (o.city && o.city.toLowerCase().includes(q)) ||
+                  (o.address && o.address.toLowerCase().includes(q));
+                if (!match) return false;
+              }
+
+              return true;
+            });
+
+            if (filteredOrders.length === 0) {
+              return (
+                <div className="border border-dashed border-neutral-200 rounded-2xl py-16 text-center space-y-2 font-mono">
+                  <p className="text-[11px] tracking-widest text-neutral-500 uppercase font-black">
+                    NO ORDERS MATCHED YOUR FILTERS
+                  </p>
+                  <p className="text-[9px] text-neutral-400 uppercase">
+                    TRY CHANGING PAYMENT STATUS, LOCATION, OR SEARCH KEYWORDS
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOrderPaymentFilter("ALL");
+                      setOrderLocationFilter("ALL");
+                      setOrderStatusFilter("ALL");
+                      setOrderSearchQuery("");
+                      setOrderDateFilter("lifetime");
+                    }}
+                    className="mt-2 bg-black text-white px-3 py-1.5 rounded text-[9px] font-bold uppercase cursor-pointer"
                   >
-                    {/* Index label indicator */}
-                    <div className="absolute top-0 right-0 bg-[#f4f4f4] text-black font-mono text-[10px] pl-3.5 pr-2 py-1 uppercase rounded-bl-lg font-bold border-l border-b flex items-center gap-2">
-                      <span>#ID_{order.id ? order.id.slice(4) : `G${orderIdx}`}</span>
-                      <button 
-                        onClick={() => toggleExpandedOrder(orderId)}
-                        className="hover:bg-neutral-200 p-0.5 rounded cursor-pointer transition-colors"
-                      >
-                        {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                      </button>
-                    </div>
+                    CLEAR ALL FILTERS
+                  </button>
+                </div>
+              );
+            }
 
-                    {!isExpanded ? (
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-6 sm:mt-2 pr-2 sm:pr-24">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-mono font-black text-black uppercase leading-none">
-                              {order.name}
-                            </p>
-                            {order.paymentMethod && (
-                              <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border uppercase ${
-                                order.paymentMethod === "esewa" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                                order.paymentMethod === "bank" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                                "bg-amber-50 text-amber-700 border-amber-200"
-                              }`}>
-                                {order.paymentMethod === "esewa" ? "eSEWA" : order.paymentMethod === "bank" ? "BANK" : "COD"}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[10px] font-mono text-neutral-500 uppercase">
-                            {dateString} • {order.items?.length || 0} ITEM(S) • {order.phone}
-                          </p>
-                        </div>
-                        <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
-                          <div className="space-y-1 text-left sm:text-right">
-                            <p className="text-sm font-mono font-black text-neutral-900 leading-none">
-                              {formatPrice(order.totalAmount)}
-                            </p>
-                            <p className="text-[10px] font-mono font-bold uppercase text-neutral-500">
-                              {order.status || "PENDING"}
-                            </p>
-                          </div>
-                          <select
-                            value={order.status || "PENDING"}
-                            disabled={updatingOrderId === order.id}
-                            onChange={(e) => updateOrderStatus(order.id, e.target.value)}
-                            className="bg-white border border-neutral-200 text-[10px] font-mono uppercase px-2 py-1 rounded disabled:opacity-50 w-28 shrink-0 cursor-pointer"
-                          >
-                            <option value="PENDING">PENDING</option>
-                            <option value="PROCESSING">PROCESSING</option>
-                            <option value="SHIPPED">SHIPPED</option>
-                            <option value="DELIVERED">DELIVERED</option>
-                            <option value="CANCELLED">CANCELLED</option>
-                          </select>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8 sm:mt-4">
-                        
-                        {/* Column 1: CUSTOMER & PLACE/LOCATION DETAILS */}
-                        <div className="space-y-3 lg:border-r border-neutral-200 lg:pr-5">
-                          <div className="flex items-center justify-between text-[10px] font-mono text-neutral-500 font-extrabold uppercase pb-1 border-b border-neutral-100">
-                            <span className="flex items-center gap-1.5"><User size={12} /> CUSTOMER & PLACE DETAILS</span>
-                            {order.city && (
-                              <span className="bg-neutral-100 text-black px-1.5 py-0.5 rounded text-[9px]">
-                                {order.city}
-                              </span>
-                            )}
-                          </div>
+            return (
+              <div className="border border-neutral-200 rounded-xl bg-white overflow-hidden shadow-xs">
+                {/* Clean Table Layout */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse font-mono text-xs">
+                    <thead>
+                      <tr className="bg-neutral-900 text-white text-[9px] tracking-widest uppercase font-bold border-b border-neutral-800">
+                        <th className="py-3 px-3">ORDER ID / DATE</th>
+                        <th className="py-3 px-3">CUSTOMER</th>
+                        <th className="py-3 px-3">LOCATION & REGION</th>
+                        <th className="py-3 px-3 text-center">ITEMS</th>
+                        <th className="py-3 px-3 text-right">TOTAL</th>
+                        <th className="py-3 px-3 text-center">PAYMENT VERIFICATION</th>
+                        <th className="py-3 px-3 text-center">ORDER STATUS</th>
+                        <th className="py-3 px-3 text-center">DETAILS</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-150">
+                      {filteredOrders.map((order, orderIdx) => {
+                        const dateString = order.createdAt 
+                          ? (order.createdAt.toDate ? order.createdAt.toDate().toLocaleString() : new Date(order.createdAt).toLocaleString())
+                          : "GUEST SYSTEM TIME";
 
-                          <div className="space-y-2 bg-neutral-50 p-3 rounded-lg border border-neutral-150">
-                            <div>
-                              <span className="text-[9px] font-mono text-neutral-400 uppercase block font-bold">FULL NAME</span>
-                              <p className="text-sm font-mono font-black text-black uppercase leading-tight">
-                                {order.name}
-                              </p>
-                            </div>
+                        const orderId = order.id || `G${orderIdx}`;
+                        const isExpanded = expandedOrders.includes(orderId);
 
-                            <div>
-                              <span className="text-[9px] font-mono text-neutral-400 uppercase block font-bold">PHONE NUMBER</span>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <p className="text-xs font-mono font-bold text-black flex items-center gap-1">
-                                  <Phone size={12} className="text-neutral-500" />
-                                  {order.phone}
+                        const inValley = isInsideKathmanduValley(order.city || "", order.address || "");
+                        const isPaymentVerified = Boolean(
+                          order.paymentStatus === "VERIFIED" || 
+                          order.paymentVerified === true ||
+                          order.status === "DELIVERED" || 
+                          order.status === "SHIPPED"
+                        );
+
+                        const paymentSS = order.paymentScreenshotUrl || order.paymentScreenshotBase64 || order.paymentScreenshot;
+
+                        return (
+                          <React.Fragment key={orderId}>
+                            <tr className={`hover:bg-neutral-50/80 transition-colors ${isExpanded ? "bg-neutral-50/90 font-bold" : ""}`}>
+                              {/* Order ID & Date */}
+                              <td className="py-3 px-3 align-top whitespace-nowrap">
+                                <span className="font-extrabold text-black text-[11px] block">
+                                  #{order.id ? order.id.slice(4) : `G${orderIdx}`}
+                                </span>
+                                <span className="text-[9px] text-neutral-400 font-normal block mt-0.5">
+                                  {dateString}
+                                </span>
+                              </td>
+
+                              {/* Customer */}
+                              <td className="py-3 px-3 align-top">
+                                <span className="font-extrabold text-black uppercase block text-[11px]">
+                                  {order.name || "GUEST CUSTOMER"}
+                                </span>
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <span className="text-[10px] text-neutral-600 font-bold flex items-center gap-0.5">
+                                    <Phone size={10} className="text-neutral-400" />
+                                    {order.phone}
+                                  </span>
+                                  <a 
+                                    href={`https://wa.me/${order.phone?.replace(/[^0-9]/g, "")}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[8px] font-bold bg-[#25D366] text-white px-1.5 py-0.2 rounded hover:bg-emerald-600 uppercase"
+                                    title="Open WhatsApp"
+                                  >
+                                    WA
+                                  </a>
+                                </div>
+                              </td>
+
+                              {/* Location & Region */}
+                              <td className="py-3 px-3 align-top">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${
+                                    inValley ? "bg-indigo-100 text-indigo-900 border border-indigo-200" : "bg-purple-100 text-purple-900 border border-purple-200"
+                                  }`}>
+                                    {inValley ? "INSIDE VALLEY (RS. 100)" : "OUTSIDE VALLEY"}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] font-semibold text-neutral-800 uppercase mt-1 truncate max-w-[180px]" title={order.address || order.city}>
+                                  {order.city ? `${order.city} - ` : ""}{order.address || "NO ADDRESS"}
                                 </p>
-                                <a 
-                                  href={`https://wa.me/${order.phone?.replace(/[^0-9]/g, "")}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-[9px] font-mono font-bold bg-[#25D366] text-white px-2 py-0.5 rounded hover:bg-emerald-600 transition-colors uppercase inline-flex items-center gap-1"
-                                >
-                                  WhatsApp
-                                </a>
-                                <a 
-                                  href={`tel:${order.phone}`}
-                                  className="text-[9px] font-mono font-bold bg-black text-white px-2 py-0.5 rounded hover:bg-neutral-800 transition-colors uppercase"
-                                >
-                                  Call
-                                </a>
-                              </div>
-                            </div>
+                              </td>
 
-                            <div>
-                              <span className="text-[9px] font-mono text-neutral-400 uppercase block font-bold">DELIVERY ADDRESS & PLACE DETAILS</span>
-                              <p className="text-xs font-mono text-neutral-800 uppercase font-semibold mt-0.5 leading-relaxed bg-white p-2 border border-neutral-200 rounded">
-                                {order.address || "NO ADDRESS SPECIFIED"}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
+                              {/* Items Summary */}
+                              <td className="py-3 px-3 align-top text-center whitespace-nowrap">
+                                <span className="inline-block bg-neutral-100 text-black font-extrabold px-2 py-0.5 rounded text-[10px] border border-neutral-200">
+                                  {order.items?.length || 0} ITEM(S)
+                                </span>
+                              </td>
 
-                        {/* Column 2: ORDERED ITEMS & CUSTOM SIZING */}
-                        <div className="space-y-3 lg:border-r border-neutral-200 lg:px-5">
-                          <div className="flex items-center justify-between text-[10px] font-mono text-neutral-500 font-extrabold uppercase pb-1 border-b border-neutral-100">
-                            <span className="flex items-center gap-1.5"><Layers size={12} /> ITEMS ({order.items?.length || 0})</span>
-                            <span className="text-[9px] text-neutral-400">CUSTOM SIZES LISTED</span>
-                          </div>
+                              {/* Total Amount */}
+                              <td className="py-3 px-3 align-top text-right whitespace-nowrap">
+                                <span className="font-black text-black text-sm block">
+                                  {formatPrice(order.totalAmount)}
+                                </span>
+                                <span className="text-[9px] text-neutral-400 font-semibold uppercase block">
+                                  {order.paymentMethod === "esewa" ? "eSEWA QR" : order.paymentMethod === "bank" ? "BANK QR" : "COD"}
+                                </span>
+                              </td>
 
-                          <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
-                            {order.items?.map((item: any, itemIdx: number) => {
-                              const hasHW = Boolean(item.userHeight || item.userWeight);
-                              const isCustom = item.selectedSize?.toUpperCase().includes("CUSTOM") || hasHW;
-                              
-                              let displaySize = item.selectedSize || "";
-                              if (hasHW && !displaySize.includes(item.userHeight || "") && !displaySize.includes(item.userWeight || "")) {
-                                const hwText = `(HT: ${item.userHeight || '-'}, WT: ${item.userWeight || '-'})`;
-                                if (!displaySize || displaySize === "N/A" || displaySize.toUpperCase() === "CUSTOM") {
-                                  displaySize = `CUSTOM ${hwText}`;
-                                } else {
-                                  displaySize = `${displaySize} ${hwText}`;
-                                }
-                              }
-                              if (!displaySize) displaySize = "N/A";
-
-                              return (
-                                <div key={itemIdx} className="bg-neutral-50 p-3 rounded-lg border border-neutral-150 space-y-2">
-                                  <div className="flex items-start gap-3">
-                                    {item.image && (
-                                      <div 
-                                        onClick={() => setSelectedScreenshotModal(item.image)}
-                                        className="w-12 h-14 bg-white border border-neutral-200 rounded p-1 flex items-center justify-center shrink-0 cursor-pointer hover:border-black transition-colors relative group"
-                                        title="Click to view full image"
-                                      >
-                                        <img src={item.image} alt={item.name} className="max-h-full max-w-full object-contain" />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[8px] font-mono font-bold text-white uppercase rounded">
-                                          VIEW
-                                        </div>
-                                      </div>
+                              {/* Payment Verification Status Toggle */}
+                              <td className="py-3 px-3 align-top text-center whitespace-nowrap">
+                                <div className="flex flex-col items-center gap-1">
+                                  <button
+                                    type="button"
+                                    disabled={updatingOrderId === order.id}
+                                    onClick={() => updatePaymentStatus(order.id, isPaymentVerified ? "PENDING" : "VERIFIED")}
+                                    className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer border shadow-2xs ${
+                                      isPaymentVerified 
+                                        ? "bg-emerald-100 text-emerald-900 border-emerald-300 hover:bg-emerald-200" 
+                                        : "bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 animate-pulse"
+                                    }`}
+                                    title="Click to toggle Payment Status"
+                                  >
+                                    {isPaymentVerified ? (
+                                      <>
+                                        <CheckCircle2 size={11} className="text-emerald-700" />
+                                        <span>PAYMENT VERIFIED</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Clock size={11} className="text-amber-700" />
+                                        <span>VERIFICATION PENDING</span>
+                                      </>
                                     )}
-                                    <div className="flex-1 min-w-0 text-left">
-                                      <p className="text-xs font-mono font-bold text-black uppercase truncate">
-                                        {item.name}
-                                      </p>
-                                      <p className="text-[10px] font-mono text-neutral-500 uppercase mt-0.5">
-                                        QTY: {item.quantity} × {formatPrice(item.price)}
-                                      </p>
-                                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                                        <span className={`text-[9px] font-mono font-black px-2 py-0.5 rounded border uppercase ${
-                                          isCustom ? "bg-amber-100 text-amber-900 border-amber-300 font-bold" : "bg-white text-black border-neutral-200"
-                                        }`}>
-                                          SIZE: {displaySize}
-                                        </span>
-                                      </div>
-                                    </div>
-                                    <span className="text-xs font-mono font-extrabold text-black shrink-0">
-                                      {formatPrice(item.price * item.quantity)}
-                                    </span>
-                                  </div>
+                                  </button>
 
-                                  {/* Custom Height & Weight Measurement Box */}
-                                  {(hasHW || isCustom) && (
-                                    <div className="bg-amber-50/90 border border-amber-300 p-2.5 rounded-md text-[10px] font-mono text-amber-950 uppercase font-black flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 shadow-xs">
-                                      <span className="flex items-center gap-1.5 text-amber-900 font-extrabold">
-                                        📐 CUSTOM SIZE MEASUREMENTS:
-                                      </span>
-                                      <span className="bg-amber-200/80 px-2 py-0.5 rounded text-[10px] text-amber-950 font-black tracking-wide">
-                                        {item.userHeight ? `HEIGHT: ${item.userHeight}` : "HEIGHT: NOT SPECIFIED"} • {item.userWeight ? `WEIGHT: ${item.userWeight}` : "WEIGHT: NOT SPECIFIED"}
-                                      </span>
-                                    </div>
+                                  {paymentSS && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedScreenshotModal(paymentSS)}
+                                      className="text-[8px] font-bold text-neutral-600 hover:text-black underline uppercase flex items-center gap-0.5 cursor-pointer mt-0.5"
+                                    >
+                                      <ImageIcon size={9} />
+                                      <span>VIEW SS</span>
+                                    </button>
                                   )}
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </div>
+                              </td>
 
-                        {/* Column 3: PAYMENT & SCREENSHOT VERIFICATION */}
-                        <div className="space-y-3 lg:pl-5 flex flex-col justify-between">
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between text-[10px] font-mono text-neutral-500 font-extrabold uppercase pb-1 border-b border-neutral-100">
-                              <span className="flex items-center gap-1.5"><Calendar size={12} /> PAYMENT & BREAKDOWN</span>
-                              <span className="text-[9px] text-neutral-400">{dateString}</span>
-                            </div>
+                              {/* Order Status Select */}
+                              <td className="py-3 px-3 align-top text-center whitespace-nowrap">
+                                <select
+                                  value={order.status || "PENDING"}
+                                  disabled={updatingOrderId === order.id}
+                                  onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                                  className="bg-white border border-neutral-300 text-[10px] font-bold uppercase px-2 py-1 rounded focus:outline-none focus:border-black cursor-pointer shadow-2xs"
+                                >
+                                  <option value="PENDING">PENDING</option>
+                                  <option value="PROCESSING">PROCESSING</option>
+                                  <option value="SHIPPED">SHIPPED</option>
+                                  <option value="DELIVERED">DELIVERED</option>
+                                  <option value="CANCELLED">CANCELLED</option>
+                                </select>
+                              </td>
 
-                            {/* Payment Method Badge */}
-                            <div className="flex items-center justify-between bg-neutral-900 text-white p-2.5 rounded-lg">
-                              <span className="text-[10px] font-mono uppercase text-gray-300 font-bold">METHOD:</span>
-                              <span className="text-xs font-mono font-black uppercase text-emerald-400 tracking-wider">
-                                {order.paymentMethod === "esewa" ? "eSEWA QR" : order.paymentMethod === "bank" ? "BANK TRANSFER QR" : "CASH ON DELIVERY (COD)"}
-                              </span>
-                            </div>
+                              {/* Expand/Collapse Button */}
+                              <td className="py-3 px-3 align-top text-center whitespace-nowrap">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleExpandedOrder(orderId)}
+                                  className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                                    isExpanded ? "bg-black text-white border-black" : "bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-100"
+                                  }`}
+                                  title={isExpanded ? "Collapse Details" : "Expand Details"}
+                                >
+                                  {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                </button>
+                              </td>
+                            </tr>
 
-                            {/* Financial Breakdown */}
-                            <div className="bg-neutral-50 p-3 rounded-lg border border-neutral-150 space-y-1.5 text-xs font-mono">
-                              {order.subtotal && (
-                                <div className="flex justify-between text-neutral-600 text-[10px]">
-                                  <span>ITEMS SUBTOTAL:</span>
-                                  <span className="font-bold">{formatPrice(order.subtotal)}</span>
-                                </div>
-                              )}
-                              {order.deliveryCharge !== undefined && (
-                                <div className="flex justify-between text-neutral-600 text-[10px]">
-                                  <span>DELIVERY CHARGE:</span>
-                                  <span className="font-bold">{formatPrice(order.deliveryCharge)}</span>
-                                </div>
-                              )}
-                              <div className="flex justify-between text-black font-black text-sm pt-1.5 border-t border-neutral-200">
-                                <span>TOTAL AMOUNT:</span>
-                                <span className="text-emerald-700">{formatPrice(order.totalAmount)}</span>
-                              </div>
+                            {/* Expanded Order Drawer Row */}
+                            {isExpanded && (
+                              <tr className="bg-neutral-50/80">
+                                <td colSpan={8} className="p-4 border-t border-b border-neutral-200">
+                                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    {/* Column 1: CUSTOMER & PLACE DETAILS */}
+                                    <div className="space-y-3 lg:border-r border-neutral-200 lg:pr-5">
+                                      <div className="flex items-center justify-between text-[10px] font-mono text-neutral-500 font-extrabold uppercase pb-1 border-b border-neutral-200">
+                                        <span className="flex items-center gap-1.5"><User size={12} /> CUSTOMER & ADDRESS DETAILS</span>
+                                        {order.city && (
+                                          <span className="bg-neutral-200 text-black px-1.5 py-0.5 rounded text-[9px] font-bold">
+                                            {order.city}
+                                          </span>
+                                        )}
+                                      </div>
 
-                              {order.paymentMethod === "cod" && (
-                                <div className="mt-2 bg-yellow-50 border border-yellow-200 p-2 rounded text-[10px] text-yellow-900 font-bold uppercase space-y-1">
-                                  <p className="text-emerald-700">✓ ADVANCE DELIVERY FEE PAID: {formatPrice(order.deliveryCharge || 120)}</p>
-                                  <p className="text-black">💵 CASH TO COLLECT ON DELIVERY: {formatPrice((order.subtotal || order.totalAmount - (order.deliveryCharge || 0)))}</p>
-                                </div>
-                              )}
-                            </div>
+                                      <div className="space-y-2 bg-white p-3 rounded-lg border border-neutral-200 shadow-2xs">
+                                        <div>
+                                          <span className="text-[9px] font-mono text-neutral-400 uppercase block font-bold">FULL NAME</span>
+                                          <p className="text-sm font-mono font-black text-black uppercase leading-tight">
+                                            {order.name}
+                                          </p>
+                                        </div>
 
-                            {/* Payment Screenshot (SS) Viewer */}
-                            {(() => {
-                              const paymentSS = order.paymentScreenshotUrl || order.paymentScreenshotBase64 || order.paymentScreenshot;
-                              if (paymentSS) {
-                                return (
-                                  <div className="bg-neutral-50 p-3 rounded-lg border border-neutral-200 space-y-2">
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-[10px] font-mono font-black text-emerald-700 flex items-center gap-1 uppercase">
-                                        <CheckCircle2 size={13} /> PAYMENT SCREENSHOT (SS)
-                                      </span>
-                                      <button
-                                        onClick={() => setSelectedScreenshotModal(paymentSS)}
-                                        className="bg-black hover:bg-neutral-800 text-white px-2.5 py-1 rounded text-[9px] font-mono font-bold uppercase cursor-pointer transition-colors shadow-xs"
-                                      >
-                                        ENLARGE SS
-                                      </button>
+                                        <div>
+                                          <span className="text-[9px] font-mono text-neutral-400 uppercase block font-bold">PHONE NUMBER</span>
+                                          <div className="flex items-center gap-2 mt-0.5">
+                                            <p className="text-xs font-mono font-bold text-black flex items-center gap-1">
+                                              <Phone size={12} className="text-neutral-500" />
+                                              {order.phone}
+                                            </p>
+                                            <a 
+                                              href={`https://wa.me/${order.phone?.replace(/[^0-9]/g, "")}`}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="text-[9px] font-mono font-bold bg-[#25D366] text-white px-2 py-0.5 rounded hover:bg-emerald-600 transition-colors uppercase inline-flex items-center gap-1"
+                                            >
+                                              WhatsApp
+                                            </a>
+                                            <a 
+                                              href={`tel:${order.phone}`}
+                                              className="text-[9px] font-mono font-bold bg-black text-white px-2 py-0.5 rounded hover:bg-neutral-800 transition-colors uppercase"
+                                            >
+                                              Call
+                                            </a>
+                                          </div>
+                                        </div>
+
+                                        <div>
+                                          <span className="text-[9px] font-mono text-neutral-400 uppercase block font-bold">FULL DELIVERY ADDRESS</span>
+                                          <p className="text-xs font-mono text-neutral-800 uppercase font-semibold mt-0.5 leading-relaxed bg-neutral-50 p-2 border border-neutral-200 rounded">
+                                            {order.address || "NO ADDRESS SPECIFIED"}
+                                          </p>
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div 
-                                      onClick={() => setSelectedScreenshotModal(paymentSS)}
-                                      className="w-full h-36 bg-white border border-neutral-200 rounded flex items-center justify-center overflow-hidden cursor-pointer group relative hover:border-black transition-colors"
-                                    >
-                                      <img 
-                                        src={paymentSS} 
-                                        alt="Payment Screenshot" 
-                                        className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform"
-                                      />
-                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-mono font-bold uppercase gap-1">
-                                        <span>🔍 CLICK FOR FULL SIZE</span>
+
+                                    {/* Column 2: ORDERED ITEMS & SIZING */}
+                                    <div className="space-y-3 lg:border-r border-neutral-200 lg:px-5">
+                                      <div className="flex items-center justify-between text-[10px] font-mono text-neutral-500 font-extrabold uppercase pb-1 border-b border-neutral-200">
+                                        <span className="flex items-center gap-1.5"><Layers size={12} /> ORDERED ITEMS ({order.items?.length || 0})</span>
+                                        <span className="text-[9px] text-neutral-400">SIZES & MEASUREMENTS</span>
+                                      </div>
+
+                                      <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+                                        {order.items?.map((item: any, itemIdx: number) => {
+                                          const hasHW = Boolean(item.userHeight || item.userWeight);
+                                          const isCustom = item.selectedSize?.toUpperCase().includes("CUSTOM") || hasHW;
+                                          
+                                          let displaySize = item.selectedSize || "";
+                                          if (hasHW && !displaySize.includes(item.userHeight || "") && !displaySize.includes(item.userWeight || "")) {
+                                            const hwText = `(HT: ${item.userHeight || '-'}, WT: ${item.userWeight || '-'})`;
+                                            if (!displaySize || displaySize === "N/A" || displaySize.toUpperCase() === "CUSTOM") {
+                                              displaySize = `CUSTOM ${hwText}`;
+                                            } else {
+                                              displaySize = `${displaySize} ${hwText}`;
+                                            }
+                                          }
+                                          if (!displaySize) displaySize = "N/A";
+
+                                          return (
+                                            <div key={itemIdx} className="bg-white p-3 rounded-lg border border-neutral-200 space-y-2 shadow-2xs">
+                                              <div className="flex items-start gap-3">
+                                                {item.image && (
+                                                  <div 
+                                                    onClick={() => setSelectedScreenshotModal(item.image)}
+                                                    className="w-12 h-14 bg-white border border-neutral-200 rounded p-1 flex items-center justify-center shrink-0 cursor-pointer hover:border-black transition-colors relative group"
+                                                    title="Click to view full image"
+                                                  >
+                                                    <img src={item.image} alt={item.name} className="max-h-full max-w-full object-contain" />
+                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[8px] font-mono font-bold text-white uppercase rounded">
+                                                      VIEW
+                                                    </div>
+                                                  </div>
+                                                )}
+                                                <div className="flex-1 min-w-0 text-left">
+                                                  <p className="text-xs font-mono font-bold text-black uppercase truncate">
+                                                    {item.name}
+                                                  </p>
+                                                  <p className="text-[10px] font-mono text-neutral-500 uppercase mt-0.5">
+                                                    QTY: {item.quantity} × {formatPrice(item.price)}
+                                                  </p>
+                                                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                                    <span className={`text-[9px] font-mono font-black px-2 py-0.5 rounded border uppercase ${
+                                                      isCustom ? "bg-amber-100 text-amber-900 border-amber-300 font-bold" : "bg-neutral-100 text-black border-neutral-200"
+                                                    }`}>
+                                                      SIZE: {displaySize}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                                <span className="text-xs font-mono font-extrabold text-black shrink-0">
+                                                  {formatPrice(item.price * item.quantity)}
+                                                </span>
+                                              </div>
+
+                                              {/* Custom Height & Weight Measurement Box */}
+                                              {(hasHW || isCustom) && (
+                                                <div className="bg-amber-50 border border-amber-300 p-2 rounded text-[10px] font-mono text-amber-950 uppercase font-black flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                                                  <span className="flex items-center gap-1 text-amber-900">
+                                                    📐 CUSTOM MEASUREMENTS:
+                                                  </span>
+                                                  <span className="bg-amber-200/80 px-2 py-0.5 rounded text-[10px] text-amber-950 font-black">
+                                                    {item.userHeight ? `HEIGHT: ${item.userHeight}` : "HT: -"} • {item.userWeight ? `WEIGHT: ${item.userWeight}` : "WT: -"}
+                                                  </span>
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+
+                                    {/* Column 3: FINANCIAL & PAYMENT SCREENSHOT */}
+                                    <div className="space-y-3 lg:pl-5 flex flex-col justify-between">
+                                      <div className="space-y-3">
+                                        <div className="flex items-center justify-between text-[10px] font-mono text-neutral-500 font-extrabold uppercase pb-1 border-b border-neutral-200">
+                                          <span className="flex items-center gap-1.5"><Calendar size={12} /> PAYMENT BREAKDOWN</span>
+                                          <span className="text-[9px] text-neutral-400">{dateString}</span>
+                                        </div>
+
+                                        {/* Financial Breakdown */}
+                                        <div className="bg-white p-3 rounded-lg border border-neutral-200 space-y-1.5 text-xs font-mono shadow-2xs">
+                                          {order.subtotal && (
+                                            <div className="flex justify-between text-neutral-600 text-[10px]">
+                                              <span>ITEMS SUBTOTAL:</span>
+                                              <span className="font-bold">{formatPrice(order.subtotal)}</span>
+                                            </div>
+                                          )}
+                                          {order.deliveryCharge !== undefined && (
+                                            <div className="flex justify-between text-neutral-600 text-[10px]">
+                                              <span>DELIVERY CHARGE:</span>
+                                              <span className="font-bold">{formatPrice(order.deliveryCharge)}</span>
+                                            </div>
+                                          )}
+                                          <div className="flex justify-between text-black font-black text-sm pt-1.5 border-t border-neutral-200">
+                                            <span>TOTAL AMOUNT:</span>
+                                            <span className="text-emerald-700">{formatPrice(order.totalAmount)}</span>
+                                          </div>
+
+                                          {order.paymentMethod === "cod" && (
+                                            <div className="mt-2 bg-yellow-50 border border-yellow-200 p-2 rounded text-[10px] text-yellow-900 font-bold uppercase space-y-1">
+                                              <p className="text-emerald-700">✓ ADVANCE DELIVERY FEE PAID: {formatPrice(order.deliveryCharge || 100)}</p>
+                                              <p className="text-black">💵 CASH TO COLLECT ON DELIVERY: {formatPrice((order.subtotal || order.totalAmount - (order.deliveryCharge || 0)))}</p>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {/* Payment Screenshot (SS) Viewer */}
+                                        {paymentSS ? (
+                                          <div className="bg-white p-3 rounded-lg border border-neutral-200 space-y-2 shadow-2xs">
+                                            <div className="flex items-center justify-between">
+                                              <span className="text-[10px] font-mono font-black text-emerald-700 flex items-center gap-1 uppercase">
+                                                <CheckCircle2 size={13} /> PAYMENT SCREENSHOT (SS)
+                                              </span>
+                                              <button
+                                                type="button"
+                                                onClick={() => setSelectedScreenshotModal(paymentSS)}
+                                                className="bg-black hover:bg-neutral-800 text-white px-2 py-1 rounded text-[9px] font-mono font-bold uppercase cursor-pointer transition-colors"
+                                              >
+                                                ENLARGE SS
+                                              </button>
+                                            </div>
+                                            <div 
+                                              onClick={() => setSelectedScreenshotModal(paymentSS)}
+                                              className="w-full h-32 bg-neutral-50 border border-neutral-200 rounded flex items-center justify-center overflow-hidden cursor-pointer group relative hover:border-black transition-colors"
+                                            >
+                                              <img 
+                                                src={paymentSS} 
+                                                alt="Payment Screenshot" 
+                                                className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform"
+                                              />
+                                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-mono font-bold uppercase">
+                                                🔍 ENLARGE
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="bg-neutral-100 p-3 rounded border border-neutral-200 text-center text-[10px] font-mono text-neutral-500 uppercase">
+                                            NO PAYMENT SCREENSHOT ATTACHED
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   </div>
-                                );
-                              } else {
-                                return (
-                                  <div className="bg-neutral-100 p-3 rounded border border-neutral-200 text-center text-[10px] font-mono text-neutral-500 uppercase">
-                                    NO PAYMENT SCREENSHOT ATTACHED
-                                  </div>
-                                );
-                              }
-                            })()}
-                          </div>
-
-                          <div className="space-y-1.5 border-t border-neutral-200 pt-3 mt-3">
-                            <span className="text-[10px] font-mono font-bold text-neutral-500 uppercase block">UPDATE ORDER STATUS</span>
-                            <select
-                              value={order.status || "PENDING"}
-                              disabled={updatingOrderId === order.id}
-                              onChange={(e) => updateOrderStatus(order.id, e.target.value)}
-                              className="w-full bg-white border border-neutral-300 text-xs font-mono font-bold uppercase px-3 py-2 rounded-lg cursor-pointer focus:outline-none focus:border-black"
-                            >
-                              <option value="PENDING">PENDING</option>
-                              <option value="PROCESSING">PROCESSING</option>
-                              <option value="SHIPPED">SHIPPED</option>
-                              <option value="DELIVERED">DELIVERED</option>
-                              <option value="CANCELLED">CANCELLED</option>
-                            </select>
-                          </div>
-                        </div>
-
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -1548,6 +1844,25 @@ export const AdminPanel: React.FC = () => {
                     />
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* 6. CUSTOM TERMS & CONDITIONS */}
+            <div className="space-y-3 text-left pt-2 border-t border-neutral-100">
+              <h3 className="text-xs font-mono font-black tracking-widest text-black uppercase">
+                6. CUSTOM TERMS & CONDITIONS POLICY
+              </h3>
+              <div className="space-y-2">
+                <label className="text-[10px] font-mono tracking-widest font-bold text-neutral-500 uppercase block">
+                  CUSTOM TERMS TEXT (LEAVE BLANK TO USE DEFAULT NANGSAL STORE POLICIES)
+                </label>
+                <textarea
+                  rows={6}
+                  value={siteSettings.customTerms || ""}
+                  onChange={(e) => updateSiteSettings({ customTerms: e.target.value })}
+                  className="w-full border border-neutral-200 bg-neutral-50 p-3 text-[10px] font-mono focus:outline-none focus:border-black rounded-lg leading-relaxed"
+                  placeholder="Enter custom Terms & Conditions text..."
+                />
               </div>
             </div>
 

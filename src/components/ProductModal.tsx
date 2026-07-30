@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useApp } from "./AppContext";
 import { X, Plus, Minus, Check, AlertCircle, ArrowLeft, User, Phone, MapPin, Compass, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -44,7 +44,7 @@ export const ProductModal: React.FC = () => {
   // Detailed full address fields
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const isTransitioningRef = useRef(false);
 
   const product = selectedProductForModal;
 
@@ -74,6 +74,7 @@ export const ProductModal: React.FC = () => {
   // Reset states on product change
   useEffect(() => {
     setActiveImgIdx(0);
+    isTransitioningRef.current = false;
     setQuantity(1);
     setAddedConfirm(false);
     setErrorPrompt("");
@@ -105,33 +106,47 @@ export const ProductModal: React.FC = () => {
 
   if (!selectedProductForModal || !product) return null;
 
-  const handlePrevImage = () => {
-    if (!product || product.images.length <= 1) return;
-    setActiveImgIdx((prev) => (prev - 1 + product.images.length) % product.images.length);
-  };
-
-  const handleNextImage = () => {
-    if (!product || product.images.length <= 1) return;
-    setActiveImgIdx((prev) => (prev + 1) % product.images.length);
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStartX(e.touches[0].clientX);
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX === null) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const diff = touchStartX - touchEndX;
-
-    if (Math.abs(diff) > 35) {
-      if (diff > 0) {
-        handleNextImage();
-      } else {
-        handlePrevImage();
-      }
+  const handlePrevImage = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
     }
-    setTouchStartX(null);
+    if (!product || !product.images || product.images.length <= 1) return;
+    if (isTransitioningRef.current) return;
+
+    isTransitioningRef.current = true;
+    setActiveImgIdx((prev) => (prev - 1 + product.images.length) % product.images.length);
+    setTimeout(() => {
+      isTransitioningRef.current = false;
+    }, 300);
+  };
+
+  const handleNextImage = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    if (!product || !product.images || product.images.length <= 1) return;
+    if (isTransitioningRef.current) return;
+
+    isTransitioningRef.current = true;
+    setActiveImgIdx((prev) => (prev + 1) % product.images.length);
+    setTimeout(() => {
+      isTransitioningRef.current = false;
+    }, 300);
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (!product || !product.images || product.images.length <= 1) return;
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (Math.abs(delta) < 25) return;
+    if (isTransitioningRef.current) return;
+
+    if (delta > 0) {
+      handleNextImage();
+    } else {
+      handlePrevImage();
+    }
   };
 
   const handleAddQty = () => setQuantity((prev) => prev + 1);
@@ -306,24 +321,26 @@ export const ProductModal: React.FC = () => {
           {/* Left: Interactive Multi-Image Slideshow */}
           <div className={`flex-1 md:h-full bg-white relative flex flex-col items-center justify-center p-6 md:p-12 border-b md:border-b-0 md:border-r border-gray-100 flex-shrink-0 flex`}>
             
-            {/* Big active preview with touch & drag swipe */}
+            {/* Big active preview with single-step swipe & wheel gesture support */}
             <div 
-              className="w-full h-[320px] md:h-[450px] relative flex items-center justify-center select-none touch-pan-y overflow-hidden cursor-grab active:cursor-grabbing"
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
+              className="w-full h-[320px] md:h-[450px] relative flex items-center justify-center select-none touch-none overflow-hidden cursor-grab active:cursor-grabbing"
+              onWheel={handleWheel}
             >
               <AnimatePresence mode="wait">
                 <motion.img
                   key={activeImgIdx}
-                  src={product.images[activeImgIdx]}
+                  src={product.images[activeImgIdx] || "https://images.unsplash.com/photo-1544441893-675973e31985?q=80&w=1000&auto=format&fit=crop"}
                   alt={product.imageAlt || product.name}
                   drag={product.images.length > 1 ? "x" : false}
                   dragConstraints={{ left: 0, right: 0 }}
-                  dragElastic={0.2}
+                  dragElastic={0.15}
                   onDragEnd={(_, info) => {
-                    if (info.offset.x < -35) {
+                    if (isTransitioningRef.current) return;
+                    const swipeThreshold = 25;
+                    const velocityThreshold = 150;
+                    if (info.offset.x < -swipeThreshold || info.velocity.x < -velocityThreshold) {
                       handleNextImage();
-                    } else if (info.offset.x > 35) {
+                    } else if (info.offset.x > swipeThreshold || info.velocity.x > velocityThreshold) {
                       handlePrevImage();
                     }
                   }}
@@ -332,8 +349,12 @@ export const ProductModal: React.FC = () => {
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.2 }}
                   style={product.imageStyle}
-                  className="max-h-full max-w-full object-contain object-center mix-blend-multiply"
+                  className="max-h-full max-w-full object-contain object-center pointer-events-auto"
                   referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    target.src = "https://images.unsplash.com/photo-1544441893-675973e31985?q=80&w=1000&auto=format&fit=crop";
+                  }}
                 />
               </AnimatePresence>
 
@@ -341,18 +362,20 @@ export const ProductModal: React.FC = () => {
               {product.images.length > 1 && (
                 <>
                   <button
-                    onClick={handlePrevImage}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-gray-200 flex items-center justify-center shadow-xs transition-opacity opacity-70 hover:opacity-100 z-10 cursor-pointer"
+                    type="button"
+                    onClick={(e) => handlePrevImage(e)}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-black border border-gray-200 flex items-center justify-center shadow-md transition-all opacity-90 hover:opacity-100 z-30 cursor-pointer active:scale-95"
                     aria-label="Previous image"
                   >
-                    <ChevronLeft size={16} className="text-black" />
+                    <ChevronLeft size={18} className="text-black" />
                   </button>
                   <button
-                    onClick={handleNextImage}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-gray-200 flex items-center justify-center shadow-xs transition-opacity opacity-70 hover:opacity-100 z-10 cursor-pointer"
+                    type="button"
+                    onClick={(e) => handleNextImage(e)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-black border border-gray-200 flex items-center justify-center shadow-md transition-all opacity-90 hover:opacity-100 z-30 cursor-pointer active:scale-95"
                     aria-label="Next image"
                   >
-                    <ChevronRight size={16} className="text-black" />
+                    <ChevronRight size={18} className="text-black" />
                   </button>
                 </>
               )}
@@ -360,16 +383,33 @@ export const ProductModal: React.FC = () => {
 
             {/* Thumbnail Navigation Dot Bar (Only if multiple images) */}
             {product.images.length > 1 && (
-              <div className="flex items-center gap-2 mt-4 select-none">
+              <div className="flex items-center gap-2 mt-4 select-none overflow-x-auto max-w-full py-1">
                 {product.images.map((img, idx) => (
                   <button
                     key={idx}
-                    onClick={() => setActiveImgIdx(idx)}
-                    className={`w-14 h-14 bg-white border rounded-sm p-1.5 transition-all overflow-hidden flex items-center justify-center cursor-pointer ${
-                      activeImgIdx === idx ? "border-black scale-105" : "border-gray-200 hover:border-black/50"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isTransitioningRef.current) return;
+                      isTransitioningRef.current = true;
+                      setActiveImgIdx(idx);
+                      setTimeout(() => {
+                        isTransitioningRef.current = false;
+                      }, 300);
+                    }}
+                    className={`w-14 h-14 bg-white border rounded-sm p-1 transition-all overflow-hidden flex items-center justify-center cursor-pointer shrink-0 ${
+                      activeImgIdx === idx ? "border-black scale-105 shadow-sm" : "border-gray-200 hover:border-black/50"
                     }`}
                   >
-                    <img src={img} alt={`${product.name} thumbnail ${idx + 1}`} className="max-h-full max-w-full object-contain mix-blend-multiply" referrerPolicy="no-referrer" />
+                    <img 
+                      src={img} 
+                      alt={`${product.name} thumbnail ${idx + 1}`} 
+                      className="max-h-full max-w-full object-contain" 
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        e.currentTarget.src = "https://images.unsplash.com/photo-1544441893-675973e31985?q=80&w=1000&auto=format&fit=crop";
+                      }}
+                    />
                   </button>
                 ))}
               </div>

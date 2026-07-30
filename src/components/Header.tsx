@@ -229,11 +229,11 @@ export const Header: React.FC = () => {
         {/* Main Navbar */}
         <div
           id="main-navbar"
-          className={`w-full transition-all duration-300 border-b ${
+          className={`w-full transition-shadow duration-300 border-b ${
             scrolled
-              ? "bg-white shadow-sm border-neutral-200 py-2.5"
-              : "bg-white border-neutral-150 py-4"
-          } px-6 md:px-12`}
+              ? "bg-white shadow-sm border-neutral-200"
+              : "bg-white border-neutral-150"
+          } py-3 px-6 md:px-12`}
         >
           <div className="max-w-[1600px] mx-auto flex items-center justify-between">
             {/* Left: Rebranded Decal Logo */}

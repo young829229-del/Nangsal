@@ -17,6 +17,7 @@ export interface SiteSettings {
   promoCode?: string;
   promoDiscountPercent?: number;
   allowedAdminEmails?: string[];
+  customTerms?: string;
 }
 
 export interface Product {

@@ -79,7 +79,7 @@ export const ProductGrid: React.FC = () => {
     <div id="shop-section" className="w-full bg-white pb-12 md:pb-20">
 
       {/* Elegant Horizontal Category Filter Selector Row */}
-      <div className="sticky top-[80px] md:top-[98px] z-30 bg-white border-b border-neutral-100 py-2.5 sm:py-3 px-3 sm:px-4 md:px-12 flex items-center justify-between overflow-x-auto select-none scrollbar-none scroll-smooth" style={{ WebkitOverflowScrolling: "touch" }}>
+      <div className="sticky top-[78px] md:top-[90px] z-30 bg-white border-b border-neutral-100 py-2.5 sm:py-3 px-3 sm:px-4 md:px-12 flex items-center justify-between overflow-x-auto select-none scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
         <div className="max-w-[1600px] mx-auto w-full flex items-center justify-start md:justify-center gap-4 sm:gap-6 md:gap-10">
           {categories.map((cat) => {
             const isActive = selectedCategory === cat;
@@ -129,7 +129,7 @@ export const ProductGrid: React.FC = () => {
               if (sectionProducts.length === 0) return null;
 
               return (
-                <div key={sectionName} id={`section-container-${sectionName}`} className="px-3 sm:px-6 md:px-8 lg:px-12">
+                <div key={sectionName} id={`section-container-${sectionName}`} className="px-3 sm:px-6 md:px-8 lg:px-12 scroll-mt-36">
                   {/* Header row */}
                   <div className="flex items-center justify-between border-b border-neutral-100 pb-3 sm:pb-5 mb-5 sm:mb-8 md:mb-10 gap-3">
                     <h2 className="text-base sm:text-lg md:text-xl font-bold tracking-[0.15em] sm:tracking-[0.2em] text-neutral-800 uppercase truncate">

@@ -78,8 +78,8 @@ const DEFAULT_SETTINGS: SiteSettings = {
   instagramUrl: "https://www.instagram.com/by_nangsal?igsh=aWpldjB4anIwd3gz",
   tiktokUrl: "https://www.tiktok.com/@nangsal_apparel?_r=1&_t=ZS-98PVmr7Eg2H",
   targetDate: "2026-06-10T14:54:06Z",
-  deliveryInsideKtm: 120,
-  deliveryOutsideKtm: 200,
+  deliveryInsideKtm: 100,
+  deliveryOutsideKtm: 150,
   promoCode: "",
   promoDiscountPercent: 0,
   allowedAdminEmails: [
