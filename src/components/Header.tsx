@@ -25,11 +25,14 @@ export const Header: React.FC = () => {
     products,
     loginWithCustomToken,
     logout,
+    siteSettings,
   } = useApp();
 
-  const isAdmin = 
-    user?.email === "comodevs@gmail.com" || user?.email === "sahakash2007777@gmail.com" || user?.email === "sasukegurung77@gmail.com" || user?.email === "ghalanbinod4@gmail.com" ||
-    userProfile?.email === "comodevs@gmail.com" || userProfile?.email === "sahakash2007777@gmail.com" || userProfile?.email === "sasukegurung77@gmail.com" || userProfile?.email === "ghalanbinod4@gmail.com";
+  const allowedEmails = siteSettings?.allowedAdminEmails || ["young829229@gmail.com", "comodevs@gmail.com", "sahakash2007777@gmail.com", "ghalanbinod4@gmail.com"];
+  const isAdmin = Boolean(
+    (user?.email && allowedEmails.some(e => e.toLowerCase() === user.email.toLowerCase())) ||
+    (userProfile?.email && allowedEmails.some(e => e.toLowerCase() === userProfile.email.toLowerCase()))
+  );
 
   const [scrolled, setScrolled] = useState(false);
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);

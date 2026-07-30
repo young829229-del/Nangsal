@@ -84,7 +84,7 @@ const DEFAULT_SETTINGS: SiteSettings = {
   promoDiscountPercent: 0,
   allowedAdminEmails: [
     "young829229@gmail.com",
-    "sasukegurung77@gmail.com",
+    "yourgmail@gmail.com",
     "comodevs@gmail.com",
     "sahakash2007777@gmail.com",
     "ghalanbinod4@gmail.com"

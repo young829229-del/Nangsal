@@ -53,7 +53,7 @@ export const AdminPanel: React.FC = () => {
 
   const allowedAdminEmails = (siteSettings.allowedAdminEmails && siteSettings.allowedAdminEmails.length > 0)
     ? siteSettings.allowedAdminEmails
-    : ["sasukegurung77@gmail.com", "sasukegurunq55@gmail.com", "young82783@gmail.com", "young829229@gmail.com"];
+    : ["young829229@gmail.com", "comodevs@gmail.com", "sahakash2007777@gmail.com", "ghalanbinod4@gmail.com"];
 
   const isGoogleUserAdmin = Boolean(
     user?.email && allowedAdminEmails.some(e => e.trim().toLowerCase() === user.email.trim().toLowerCase())
@@ -639,7 +639,7 @@ export const AdminPanel: React.FC = () => {
               <input
                 type="email"
                 required
-                placeholder="e.g. sasukegurung77@gmail.com"
+                placeholder="e.g. yourgmail@gmail.com"
                 value={adminUsername}
                 onChange={(e) => setAdminUsername(e.target.value)}
                 className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-lg text-xs font-mono focus:outline-none focus:border-black focus:bg-white transition-all"
@@ -1893,7 +1893,7 @@ export const AdminPanel: React.FC = () => {
                 <div className="flex gap-2 pt-1">
                   <input
                     type="email"
-                    placeholder="ENTER NEW ADMIN GMAIL (e.g. user@gmail.com)"
+                    placeholder="ENTER NEW ADMIN GMAIL (e.g. yourgmail@gmail.com)"
                     value={newAdminEmail}
                     onChange={(e) => setNewAdminEmail(e.target.value)}
                     className="flex-1 border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-xs font-mono focus:outline-none focus:border-black rounded-lg"

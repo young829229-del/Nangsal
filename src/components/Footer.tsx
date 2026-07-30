@@ -159,7 +159,7 @@ export const Footer: React.FC = () => {
                     FOR ANY INQUIRIES, ORDER UPDATES, OR GENERAL ASSISTANCE, PLEASE CONTACT OUR SUPPORT TEAM.
                   </p>
                   <p className="text-[10px] font-mono font-bold tracking-widest text-black">
-                    EMAIL: <a href="mailto:sasukegurung77@gmail.com" className="underline hover:text-neutral-500">SASUKEGURUNG77@GMAIL.COM</a>
+                    EMAIL: <a href="mailto:yourgmail@gmail.com" className="underline hover:text-neutral-500">YOURGMAIL@GMAIL.COM</a>
                   </p>
                 </div>
                 {/* Drawer Part 2 */}
