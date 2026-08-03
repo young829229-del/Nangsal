@@ -66,7 +66,7 @@ export const Header: React.FC = () => {
     if (showProfileModal) {
       const loadOrders = async () => {
         try {
-          const saved = localStorage.getItem("slimhood_guest_orders");
+          const saved = localStorage.getItem("nangsal_guest_orders") || localStorage.getItem("slimhood_guest_orders");
           if (saved) {
             const parsedOrders = JSON.parse(saved);
             parsedOrders.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -176,13 +176,13 @@ export const Header: React.FC = () => {
       ));
       
       // Update localStorage for guest orders
-      const saved = localStorage.getItem("slimhood_guest_orders");
+      const saved = localStorage.getItem("nangsal_guest_orders") || localStorage.getItem("slimhood_guest_orders");
       if (saved) {
         const parsedOrders = JSON.parse(saved);
         const updatedOrders = parsedOrders.map((ord: any) => 
           ord.id === orderId ? { ...ord, status: "CANCELLED" } : ord
         );
-        localStorage.setItem("slimhood_guest_orders", JSON.stringify(updatedOrders));
+        localStorage.setItem("nangsal_guest_orders", JSON.stringify(updatedOrders));
       }
       
       alert("Order cancelled successfully");

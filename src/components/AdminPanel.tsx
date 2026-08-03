@@ -70,11 +70,11 @@ export const AdminPanel: React.FC = () => {
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
       setUpdatingOrderId(orderId);
-      const saved = localStorage.getItem("slimhood_guest_orders");
+      const saved = localStorage.getItem("nangsal_guest_orders") || localStorage.getItem("slimhood_guest_orders");
       if (saved) {
         const parsed = JSON.parse(saved);
         const updated = parsed.map((o: any) => o.id === orderId ? { ...o, status: newStatus } : o);
-        localStorage.setItem("slimhood_guest_orders", JSON.stringify(updated));
+        localStorage.setItem("nangsal_guest_orders", JSON.stringify(updated));
         setOrders(updated);
       } else {
         setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
@@ -90,13 +90,13 @@ export const AdminPanel: React.FC = () => {
   const updatePaymentStatus = async (orderId: string, newPaymentStatus: "VERIFIED" | "PENDING") => {
     try {
       setUpdatingOrderId(orderId);
-      const saved = localStorage.getItem("slimhood_guest_orders");
+      const saved = localStorage.getItem("nangsal_guest_orders") || localStorage.getItem("slimhood_guest_orders");
       if (saved) {
         const parsed = JSON.parse(saved);
         const updated = parsed.map((o: any) => 
           o.id === orderId ? { ...o, paymentStatus: newPaymentStatus, paymentVerified: newPaymentStatus === "VERIFIED" } : o
         );
-        localStorage.setItem("slimhood_guest_orders", JSON.stringify(updated));
+        localStorage.setItem("nangsal_guest_orders", JSON.stringify(updated));
         setOrders(updated);
       } else {
         setOrders(prev => prev.map(o => 
@@ -131,7 +131,7 @@ export const AdminPanel: React.FC = () => {
 
       setOrdersError(null);
       let localList: any[] = [];
-      const saved = localStorage.getItem("slimhood_guest_orders");
+      const saved = localStorage.getItem("nangsal_guest_orders") || localStorage.getItem("slimhood_guest_orders");
       if (saved) {
         try {
           localList = JSON.parse(saved);

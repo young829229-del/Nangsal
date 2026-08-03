@@ -13,8 +13,8 @@ app.use(express.json({ limit: "10mb" }));
 const PORT = 3000;
 
 // High-strength admin credentials
-const ADMIN_USERNAME = "slimhood";
-const ADMIN_PASSWORD = "Slimhood@SecureAdmin2026!";
+const ADMIN_USERNAME = "nangsal";
+const ADMIN_PASSWORD = "Nangsal@SecureAdmin2026!";
 
 // Local Server Storage
 const localOrdersStore = new Map<string, any>();
@@ -206,7 +206,7 @@ app.post("/api/admin/login", (req, res) => {
 // Middleware to protect admin routes
 const requireAdminAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const authHeader = req.headers.authorization;
-  if (authHeader === "Bearer nangsal_secure_admin_token_v1" || authHeader === "Bearer slimhood_backend_token_v1") {
+  if (authHeader === "Bearer nangsal_secure_admin_token_v1") {
     return next();
   }
   return res.status(403).json({ error: "UNAUTHORIZED: Access requires verified admin session." });

@@ -1,6 +1,6 @@
 # Security Specification & Threat Model
 
-This document outlines the security architecture and validation constraints for the Slimhood Firestore database.
+This document outlines the security architecture and validation constraints for the Nangsal Firestore database.
 
 ## Data Invariants
 1. **User Identity Isolation**: A user's profile (/users/{userId}) can only be written to and read by the authenticated user with a matching UID.

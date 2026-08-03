@@ -136,7 +136,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Cart state
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
-      const saved = localStorage.getItem("slimhood_cart");
+      const saved = localStorage.getItem("nangsal_cart") || localStorage.getItem("slimhood_cart");
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       return [];
@@ -156,7 +156,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isLoadingUser, setIsLoadingUser] = useState(false);
   const [userProfile, setUserProfile] = useState<{ name: string; phone: string; address: string; email: string } | null>(() => {
     try {
-      const saved = localStorage.getItem("slimhood_guest_profile");
+      const saved = localStorage.getItem("nangsal_guest_profile") || localStorage.getItem("slimhood_guest_profile");
       return saved ? JSON.parse(saved) : { name: "", phone: "", address: "", email: "" };
     } catch (e) {
       return { name: "", phone: "", address: "", email: "" };
@@ -165,20 +165,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Currency selection backed by localStorage
   const [currency, setCurrencyState] = useState<CurrencyCode>(() => {
-    const saved = localStorage.getItem("slimhood_currency");
+    const saved = localStorage.getItem("nangsal_currency") || localStorage.getItem("slimhood_currency");
     return (saved as CurrencyCode) || "NPR";
   });
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTabState] = useState<"HOME" | "SHOP" | "TERMS" | "ADMIN" | "LOGIN">(() => {
-    const saved = sessionStorage.getItem("slimhood_active_tab");
+    const saved = sessionStorage.getItem("nangsal_active_tab") || sessionStorage.getItem("slimhood_active_tab");
     return (saved as "HOME" | "SHOP" | "TERMS" | "ADMIN" | "LOGIN") || "HOME";
   });
 
   const setActiveTab = (tab: "HOME" | "SHOP" | "TERMS" | "ADMIN" | "LOGIN") => {
     setActiveTabState(tab);
-    sessionStorage.setItem("slimhood_active_tab", tab);
+    sessionStorage.setItem("nangsal_active_tab", tab);
   };
 
   const [selectedProductForModal, setSelectedProductForModal] = useState<Product | null>(null);
@@ -186,11 +186,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Sync to localStorage
   useEffect(() => {
-    localStorage.setItem("slimhood_cart", JSON.stringify(cart));
+    localStorage.setItem("nangsal_cart", JSON.stringify(cart));
   }, [cart]);
 
   useEffect(() => {
-    localStorage.setItem("slimhood_currency", currency);
+    localStorage.setItem("nangsal_currency", currency);
   }, [currency]);
 
   useEffect(() => {
@@ -353,7 +353,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCart([]);
       setUserProfile(null);
       setUser(null);
+      localStorage.removeItem("nangsal_cart");
       localStorage.removeItem("slimhood_cart");
+      localStorage.removeItem("nangsal_guest_profile");
       localStorage.removeItem("slimhood_guest_profile");
       localStorage.removeItem("nangsal_local_user");
       sessionStorage.removeItem("nangsal_admin_logged_in");
@@ -371,7 +373,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       email: email || userProfile?.email || ""
     };
     setUserProfile(profile);
-    localStorage.setItem("slimhood_guest_profile", JSON.stringify(profile));
+    localStorage.setItem("nangsal_guest_profile", JSON.stringify(profile));
   };
 
   const saveOrderToHistory = async (
@@ -436,9 +438,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Save locally
     try {
-      const guestOrders = JSON.parse(localStorage.getItem("slimhood_guest_orders") || "[]");
+      const guestOrders = JSON.parse(localStorage.getItem("nangsal_guest_orders") || localStorage.getItem("slimhood_guest_orders") || "[]");
       guestOrders.push(newOrder);
-      localStorage.setItem("slimhood_guest_orders", JSON.stringify(guestOrders));
+      localStorage.setItem("nangsal_guest_orders", JSON.stringify(guestOrders));
     } catch (err) {
       console.error("Failed to save order locally:", err);
     }
