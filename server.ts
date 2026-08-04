@@ -12,9 +12,10 @@ app.use(express.json({ limit: "10mb" }));
 
 const PORT = 3000;
 
-// High-strength admin credentials
-const ADMIN_USERNAME = "nangsal";
-const ADMIN_PASSWORD = "Nangsal@SecureAdmin2026!";
+// High-strength admin credentials loaded from environment variables
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "nangsal";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Nangsal@SecureAdmin2026!";
+const ADMIN_BEARER_TOKEN = process.env.ADMIN_BEARER_TOKEN || "nangsal_secure_admin_token_v1";
 
 // Local Server Storage
 const localOrdersStore = new Map<string, any>();
@@ -51,7 +52,7 @@ app.post("/api/send-otp", async (req, res) => {
     return res.status(400).json({ error: "Missing email or code" });
   }
 
-  console.log(`[OTP VERIFICATION] Generated OTP for ${email}: ${code}`);
+  console.log(`[OTP VERIFICATION] OTP verification dispatch requested for ${email}`);
   return res.json({ 
     success: true, 
     code, 
@@ -76,11 +77,56 @@ app.post("/api/verify-otp", async (req, res) => {
 app.post("/api/orders", async (req, res) => {
   try {
     const { orderId, orderData } = req.body;
-    if (!orderId || !orderData) {
-      return res.status(400).json({ error: "Invalid order payload" });
+    if (!orderId || typeof orderId !== "string" || !orderData || typeof orderData !== "object") {
+      serverWafLogs.push({
+        timestamp: new Date().toISOString(),
+        action: "INVALID_ORDER_PAYLOAD",
+        ip: req.ip || "127.0.0.1",
+        status: "BLOCKED",
+        reason: "Missing or malformed payload structure"
+      });
+      return res.status(400).json({ error: "Invalid order payload structure" });
     }
+
+    // Input sanitization and bounds checking
+    const { items, totalAmount, name, phone, address, email } = orderData;
     
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "Order must contain at least one valid item" });
+    }
+
+    // Check negative prices or quantities
+    const invalidItems = items.some(
+      (item: any) => !item || typeof item.quantity !== "number" || item.quantity <= 0 || typeof item.price !== "number" || item.price < 0
+    );
+    if (invalidItems) {
+      serverWafLogs.push({
+        timestamp: new Date().toISOString(),
+        action: "ORDER_QUANTITY_POISONING_ATTEMPT",
+        ip: req.ip || "127.0.0.1",
+        status: "BLOCKED",
+        orderId
+      });
+      return res.status(400).json({ error: "Invalid product quantity or price parameters detected" });
+    }
+
+    if (typeof totalAmount !== "number" || totalAmount < 0 || isNaN(totalAmount)) {
+      return res.status(400).json({ error: "Invalid total amount parameter" });
+    }
+
+    // Sanitize string lengths to prevent payload poisoning attacks
+    if (name && (typeof name !== "string" || name.length > 200)) {
+      return res.status(400).json({ error: "Customer name exceeds security length limits" });
+    }
+    if (phone && (typeof phone !== "string" || phone.length > 50)) {
+      return res.status(400).json({ error: "Phone number exceeds security length limits" });
+    }
+    if (address && (typeof address !== "string" || address.length > 500)) {
+      return res.status(400).json({ error: "Address exceeds security length limits" });
+    }
+
     orderData.createdAt = new Date().toISOString(); 
+    orderData.securityVerified = true;
     localOrdersStore.set(orderId, orderData);
     
     serverWafLogs.push({
@@ -88,7 +134,8 @@ app.post("/api/orders", async (req, res) => {
       action: "CREATE_ORDER",
       ip: req.ip || "127.0.0.1",
       status: "ALLOWED",
-      orderId
+      orderId,
+      totalAmount
     });
 
     return res.json({ success: true, orderId });
@@ -187,7 +234,7 @@ app.post("/api/admin/login", (req, res) => {
     });
     return res.json({
       success: true,
-      token: "nangsal_secure_admin_token_v1",
+      token: ADMIN_BEARER_TOKEN,
       username: ADMIN_USERNAME,
     });
   }
@@ -206,7 +253,7 @@ app.post("/api/admin/login", (req, res) => {
 // Middleware to protect admin routes
 const requireAdminAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const authHeader = req.headers.authorization;
-  if (authHeader === "Bearer nangsal_secure_admin_token_v1") {
+  if (authHeader === `Bearer ${ADMIN_BEARER_TOKEN}`) {
     return next();
   }
   return res.status(403).json({ error: "UNAUTHORIZED: Access requires verified admin session." });

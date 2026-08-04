@@ -4,6 +4,8 @@ import { CurrencyCode } from "../types";
 import { Search, ShoppingBag, User, ChevronDown, X, Menu, CheckCircle2, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ShieldCheck } from "lucide-react";
+import { doc, setDoc } from "firebase/firestore";
+import { db, auth } from "../firebase";
 
 export const Header: React.FC = () => {
   const {
@@ -20,6 +22,7 @@ export const Header: React.FC = () => {
     setSelectedCategory,
     userProfile,
     user,
+    orders,
     updateProfileDetails,
     formatPrice,
     products,
@@ -28,7 +31,9 @@ export const Header: React.FC = () => {
     siteSettings,
   } = useApp();
 
-  const allowedEmails = siteSettings?.allowedAdminEmails || ["young829229@gmail.com", "comodevs@gmail.com", "sahakash2007777@gmail.com", "ghalanbinod4@gmail.com"];
+  const allowedEmails = (siteSettings?.allowedAdminEmails || ["young829229@gmail.com"]).filter(
+    e => !["comodevs@gmail.com", "sahakash2007777@gmail.com", "ghalanbinod4@gmail.com", "yourgmail@gmail.com"].includes(e.trim().toLowerCase())
+  );
   const isAdmin = Boolean(
     (user?.email && allowedEmails.some(e => e.toLowerCase() === user.email.toLowerCase())) ||
     (userProfile?.email && allowedEmails.some(e => e.toLowerCase() === userProfile.email.toLowerCase()))
@@ -64,7 +69,10 @@ export const Header: React.FC = () => {
 
   useEffect(() => {
     if (showProfileModal) {
-      const loadOrders = async () => {
+      if (orders && orders.length > 0) {
+        const sorted = [...orders].sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+        setGuestOrders(sorted);
+      } else {
         try {
           const saved = localStorage.getItem("nangsal_guest_orders") || localStorage.getItem("slimhood_guest_orders");
           if (saved) {
@@ -77,10 +85,9 @@ export const Header: React.FC = () => {
         } catch (err) {
           console.error("Failed to load orders:", err);
         }
-      };
-      loadOrders();
+      }
     }
-  }, [showProfileModal, user]);
+  }, [showProfileModal, user, orders]);
 
   useEffect(() => {
     if (!userProfile || !userProfile.email) {
@@ -170,6 +177,15 @@ export const Header: React.FC = () => {
         throw new Error(data.error || "Failed to cancel order");
       }
       
+      // Also update Firestore order status if user is authenticated
+      if (auth.currentUser) {
+        try {
+          await setDoc(doc(db, "orders", orderId), { status: "CANCELLED" }, { merge: true });
+        } catch (err) {
+          // Fallback handled
+        }
+      }
+
       // Update local state to reflect cancellation
       setGuestOrders(prev => prev.map(ord => 
         ord.id === orderId ? { ...ord, status: "CANCELLED" } : ord

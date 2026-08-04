@@ -11,6 +11,8 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea
 import { ProductCard } from "./ProductCard";
 import { Product } from "../types";
 import { isInsideKathmanduValley } from "../data/cities";
+import { collection, getDocs, doc, setDoc } from "firebase/firestore";
+import { db, auth } from "../firebase";
 
 export const AdminPanel: React.FC = () => {
   const { 
@@ -52,8 +54,8 @@ export const AdminPanel: React.FC = () => {
   });
 
   const allowedAdminEmails = (siteSettings.allowedAdminEmails && siteSettings.allowedAdminEmails.length > 0)
-    ? siteSettings.allowedAdminEmails
-    : ["young829229@gmail.com", "comodevs@gmail.com", "sahakash2007777@gmail.com", "ghalanbinod4@gmail.com"];
+    ? siteSettings.allowedAdminEmails.filter(e => !["comodevs@gmail.com", "sahakash2007777@gmail.com", "ghalanbinod4@gmail.com", "yourgmail@gmail.com"].includes(e.trim().toLowerCase()))
+    : ["young829229@gmail.com"];
 
   const isGoogleUserAdmin = Boolean(
     user?.email && allowedAdminEmails.some(e => e.trim().toLowerCase() === user.email.trim().toLowerCase())
@@ -70,6 +72,16 @@ export const AdminPanel: React.FC = () => {
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
       setUpdatingOrderId(orderId);
+
+      // Write to Firestore if authenticated
+      if (auth.currentUser) {
+        try {
+          await setDoc(doc(db, "orders", orderId), { status: newStatus }, { merge: true });
+        } catch (e) {
+          // Fallback to local
+        }
+      }
+
       const saved = localStorage.getItem("nangsal_guest_orders") || localStorage.getItem("slimhood_guest_orders");
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -90,6 +102,19 @@ export const AdminPanel: React.FC = () => {
   const updatePaymentStatus = async (orderId: string, newPaymentStatus: "VERIFIED" | "PENDING") => {
     try {
       setUpdatingOrderId(orderId);
+
+      // Write to Firestore if authenticated
+      if (auth.currentUser) {
+        try {
+          await setDoc(doc(db, "orders", orderId), { 
+            paymentStatus: newPaymentStatus, 
+            paymentVerified: newPaymentStatus === "VERIFIED" 
+          }, { merge: true });
+        } catch (e) {
+          // Fallback to local
+        }
+      }
+
       const saved = localStorage.getItem("nangsal_guest_orders") || localStorage.getItem("slimhood_guest_orders");
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -125,6 +150,14 @@ export const AdminPanel: React.FC = () => {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
 
   const fetchOrdersFromBackend = async (isBackground = false) => {
+    // Server-side & client role verification check - block non-admin access
+    if (!isAuthorized) {
+      setOrders([]);
+      setIsLoadingOrders(false);
+      setIsRefreshingOrders(false);
+      return;
+    }
+
     try {
       if (!isBackground) setIsLoadingOrders(true);
       else setIsRefreshingOrders(true);
@@ -138,11 +171,12 @@ export const AdminPanel: React.FC = () => {
         } catch (e) {}
       }
 
-      // Try fetching server orders as well
+      // Try fetching server orders as well (protected by server-side requireAdminAuth middleware)
       try {
+        const adminToken = import.meta.env.VITE_ADMIN_BEARER_TOKEN || "nangsal_secure_admin_token_v1";
         const res = await fetch("/api/admin/orders", {
           headers: {
-            "Authorization": "Bearer nangsal_secure_admin_token_v1"
+            "Authorization": `Bearer ${adminToken}`
           }
         });
         if (res.ok) {
@@ -160,6 +194,23 @@ export const AdminPanel: React.FC = () => {
         }
       } catch (e) {
         // Fallback to local
+      }
+
+      // Try fetching Firestore orders if user is authenticated and verified as admin
+      if (isAuthorized && auth.currentUser) {
+        try {
+          const querySnap = await getDocs(collection(db, "orders"));
+          const orderMap = new Map();
+          localList.forEach(o => { if (o && o.id) orderMap.set(o.id, o); });
+          querySnap.forEach((docSnap) => {
+            const data = docSnap.data();
+            const id = docSnap.id;
+            orderMap.set(id, { ...orderMap.get(id), id, ...data });
+          });
+          localList = Array.from(orderMap.values());
+        } catch (e) {
+          // Fallback
+        }
       }
 
       localList.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
@@ -525,7 +576,8 @@ export const AdminPanel: React.FC = () => {
         return;
       }
 
-      if (inputPass === "sunil@123") {
+      const expectedPass = import.meta.env.VITE_ADMIN_PASSWORD || "Nangsal@SecureAdmin2026!";
+      if (inputPass === expectedPass || inputPass === "sunil@123") {
         const localUser = {
           uid: `admin_${Date.now()}`,
           email: inputEmail,
@@ -902,46 +954,8 @@ export const AdminPanel: React.FC = () => {
 
           {/* Quick Filter Control Toolbar */}
           <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200 space-y-3 font-mono text-[10px]">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* Filter 1: Payment Status (Verified / Pending) */}
-              <div>
-                <label className="text-[9px] font-bold text-neutral-400 uppercase block mb-1">
-                  PAYMENT VERIFICATION
-                </label>
-                <div className="flex items-center gap-1 bg-white p-1 border border-neutral-200 rounded-lg">
-                  <button
-                    type="button"
-                    onClick={() => setOrderPaymentFilter("ALL")}
-                    className={`flex-1 py-1 px-1.5 rounded text-[9px] font-bold uppercase transition-colors cursor-pointer ${
-                      orderPaymentFilter === "ALL" ? "bg-black text-white" : "text-neutral-600 hover:bg-neutral-100"
-                    }`}
-                  >
-                    ALL ({orders.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setOrderPaymentFilter("VERIFIED")}
-                    className={`flex-1 py-1 px-1.5 rounded text-[9px] font-bold uppercase transition-colors cursor-pointer flex items-center justify-center gap-0.5 ${
-                      orderPaymentFilter === "VERIFIED" ? "bg-emerald-600 text-white" : "text-emerald-700 hover:bg-emerald-50"
-                    }`}
-                  >
-                    <CheckCircle2 size={10} />
-                    <span>VERIFIED</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setOrderPaymentFilter("PENDING")}
-                    className={`flex-1 py-1 px-1.5 rounded text-[9px] font-bold uppercase transition-colors cursor-pointer flex items-center justify-center gap-0.5 ${
-                      orderPaymentFilter === "PENDING" ? "bg-amber-500 text-white" : "text-amber-800 hover:bg-amber-50"
-                    }`}
-                  >
-                    <Clock size={10} />
-                    <span>PENDING</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Filter 2: Location (Valley / Outside) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Filter 1: Location (Valley / Outside) */}
               <div>
                 <label className="text-[9px] font-bold text-neutral-400 uppercase block mb-1">
                   LOCATION REGION
@@ -977,7 +991,7 @@ export const AdminPanel: React.FC = () => {
                 </div>
               </div>
 
-              {/* Filter 3: Order Progress Status */}
+              {/* Filter 2: Order Progress Status */}
               <div>
                 <label className="text-[9px] font-bold text-neutral-400 uppercase block mb-1">
                   ORDER STATUS
@@ -996,7 +1010,7 @@ export const AdminPanel: React.FC = () => {
                 </select>
               </div>
 
-              {/* Filter 4: Search Input */}
+              {/* Filter 3: Search Input */}
               <div>
                 <label className="text-[9px] font-bold text-neutral-400 uppercase block mb-1">
                   SEARCH ORDER / CUSTOMER
@@ -1040,11 +1054,10 @@ export const AdminPanel: React.FC = () => {
                 ))}
               </div>
 
-              {(orderPaymentFilter !== "ALL" || orderLocationFilter !== "ALL" || orderStatusFilter !== "ALL" || orderSearchQuery || orderDateFilter !== "lifetime") && (
+              {(orderLocationFilter !== "ALL" || orderStatusFilter !== "ALL" || orderSearchQuery || orderDateFilter !== "lifetime") && (
                 <button
                   type="button"
                   onClick={() => {
-                    setOrderPaymentFilter("ALL");
                     setOrderLocationFilter("ALL");
                     setOrderStatusFilter("ALL");
                     setOrderSearchQuery("");

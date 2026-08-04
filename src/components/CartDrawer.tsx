@@ -375,6 +375,17 @@ export const CartDrawer: React.FC = () => {
 
                     {/* Simulative address check section */}
                     <form onSubmit={handleCheckoutSubmit} className="space-y-3 pt-2">
+                      {/* Guest Checkout Info Box */}
+                      <div className="bg-emerald-50 border border-emerald-300 p-3 rounded text-left font-mono">
+                        <div className="flex items-center gap-1.5 text-emerald-950 font-black text-[10px] uppercase tracking-wider">
+                          <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                          <span>GUEST CHECKOUT • NO ACCOUNT REQUIRED</span>
+                        </div>
+                        <p className="text-[9.5px] text-emerald-800 font-sans mt-1 leading-relaxed">
+                          Orders placed as a <strong>Guest</strong> count as 100% official orders and are automatically saved directly to our <strong>Admin Panel</strong> for immediate processing and delivery!
+                        </p>
+                      </div>
+
                       <div className="grid grid-cols-2 gap-3">
                         <div className="text-left space-y-1.5">
                           <label className="text-[9px] font-mono tracking-widest text-gray-400 uppercase">
@@ -869,8 +880,8 @@ export const CartDrawer: React.FC = () => {
                 <div className="relative z-10">
                   <motion.div
                     initial={{ scale: 0 }}
-                    animate={{ scale: [0, 1.15, 1] }}
-                    transition={{ type: "spring", stiffness: 350, damping: 20, delay: 0.1 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 350, damping: 15, delay: 0.1 }}
                     className="w-20 h-20 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-xl shadow-emerald-500/30"
                   >
                     <CheckCircle2 size={44} className="stroke-[2.5]" />
@@ -914,10 +925,12 @@ export const CartDrawer: React.FC = () => {
                   className="bg-neutral-50 border border-neutral-200 p-4 rounded-md text-left w-full space-y-3 text-[10px] tracking-wide leading-relaxed shadow-sm z-10"
                 >
                   <div className="flex items-center justify-between border-b border-neutral-200 pb-2">
-                    <span className="font-bold text-neutral-400 uppercase tracking-widest text-[9px]">ORDER STATUS</span>
-                    <span className="bg-amber-500/15 text-amber-700 border border-amber-300 font-mono font-extrabold px-2 py-0.5 rounded text-[9px] tracking-widest uppercase flex items-center gap-1">
-                      <Clock size={10} /> PAYMENT VERIFICATION PENDING
-                    </span>
+                    <span className="font-bold text-neutral-400 uppercase tracking-widest text-[9px]">ORDER TYPE & STATUS</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 font-mono font-extrabold px-2 py-0.5 rounded text-[8px] tracking-widest uppercase">
+                        ✓ GUEST ORDER LOGGED IN ADMIN PANEL
+                      </span>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 pt-1 text-[10px]">

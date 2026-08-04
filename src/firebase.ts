@@ -5,13 +5,14 @@ import { getAuth } from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAxQ0dDQygkr1EpGvoaLi8tTFRZpXHeFZA",
-  authDomain: "nangsal.firebaseapp.com",
-  projectId: "nangsal",
-  storageBucket: "nangsal.firebasestorage.app",
-  messagingSenderId: "415795685966",
-  appId: "1:415795685966:web:77540d491c2a550754311f",
-  measurementId: "G-DG9GQLK5JW"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAxQ0dDQygkr1EpGvoaLi8tTFRZpXHeFZA",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "nangsal.firebaseapp.com",
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || "https://nangsal-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "nangsal",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "nangsal.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "415795685966",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:415795685966:web:77540d491c2a550754311f",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-DG9GQLK5JW"
 };
 
 // Initialize Firebase

@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Product, CartItem, CurrencyCode, CURRENCIES, SiteSettings } from "../types";
 import { PRODUCTS } from "../data";
-import { auth } from "../firebase";
+import { auth, db, OperationType, handleFirestoreError } from "../firebase";
 import { GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged } from "firebase/auth";
+import { doc, setDoc, onSnapshot, collection, query, where } from "firebase/firestore";
 
 export interface LocalUser {
   uid: string;
@@ -35,6 +36,7 @@ interface AppContextType {
   user: LocalUser | null;
   isLoadingUser: boolean;
   userProfile: { name: string; phone: string; address: string; email: string } | null;
+  orders: any[];
   loginWithGoogle: () => Promise<{ error?: string } | void>;
   loginWithCustomToken: (token: string) => Promise<{ error?: string } | void>;
   logout: () => Promise<void>;
@@ -83,11 +85,7 @@ const DEFAULT_SETTINGS: SiteSettings = {
   promoCode: "",
   promoDiscountPercent: 0,
   allowedAdminEmails: [
-    "young829229@gmail.com",
-    "yourgmail@gmail.com",
-    "comodevs@gmail.com",
-    "sahakash2007777@gmail.com",
-    "ghalanbinod4@gmail.com"
+    "young829229@gmail.com"
   ]
 };
 
@@ -125,7 +123,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (!parsed.heroImage || parsed.heroImage === "https://i.ibb.co/BKQYptr5/IMG-3343.jpg") {
           parsed.heroImage = DEFAULT_SETTINGS.heroImage;
         }
-        return { ...DEFAULT_SETTINGS, ...parsed };
+        const cleanEmails = (parsed.allowedAdminEmails || DEFAULT_SETTINGS.allowedAdminEmails).filter(
+          (e: string) => !["comodevs@gmail.com", "sahakash2007777@gmail.com", "ghalanbinod4@gmail.com", "yourgmail@gmail.com"].includes(e.trim().toLowerCase())
+        );
+        return { ...DEFAULT_SETTINGS, ...parsed, allowedAdminEmails: cleanEmails.length > 0 ? cleanEmails : ["young829229@gmail.com"] };
       }
     } catch (e) {
       console.warn("Could not load local settings:", e);
@@ -163,6 +164,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  // Orders state
+  const [orders, setOrders] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem("nangsal_guest_orders") || localStorage.getItem("slimhood_guest_orders");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
   // Currency selection backed by localStorage
   const [currency, setCurrencyState] = useState<CurrencyCode>(() => {
     const saved = localStorage.getItem("nangsal_currency") || localStorage.getItem("slimhood_currency");
@@ -187,7 +198,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Sync to localStorage
   useEffect(() => {
     localStorage.setItem("nangsal_cart", JSON.stringify(cart));
-  }, [cart]);
+    if (auth.currentUser && user && user.uid) {
+      const cartRef = doc(db, "carts", user.uid);
+      setDoc(cartRef, { items: cart, updatedAt: new Date().toISOString() }, { merge: true }).catch((err) => {
+        handleFirestoreError(err, OperationType.WRITE, `carts/${user.uid}`);
+      });
+    }
+  }, [cart, user]);
 
   useEffect(() => {
     localStorage.setItem("nangsal_currency", currency);
@@ -208,6 +225,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.removeItem("nangsal_local_user");
     }
   }, [user]);
+
+  // Sync remote cart from Firestore on login
+  useEffect(() => {
+    if (!auth.currentUser || !user || !user.uid) return;
+
+    const cartRef = doc(db, "carts", user.uid);
+    const unsubscribe = onSnapshot(
+      cartRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const remoteCart = snapshot.data().items;
+          if (Array.isArray(remoteCart)) {
+            setCart(remoteCart);
+          }
+        } else if (cart.length > 0) {
+          setDoc(cartRef, { items: cart, updatedAt: new Date().toISOString() }, { merge: true }).catch((err) => {
+            handleFirestoreError(err, OperationType.WRITE, `carts/${user.uid}`);
+          });
+        }
+      },
+      (err) => {
+        handleFirestoreError(err, OperationType.GET, `carts/${user.uid}`);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  // Sync orders from Firestore across all devices for logged in user
+  useEffect(() => {
+    if (!auth.currentUser || !user || !user.uid) {
+      try {
+        const saved = localStorage.getItem("nangsal_guest_orders") || localStorage.getItem("slimhood_guest_orders");
+        if (saved) setOrders(JSON.parse(saved));
+      } catch (e) {}
+      return;
+    }
+
+    const qUser = query(collection(db, "orders"), where("userId", "==", user.uid));
+    const unsubscribeUserOrders = onSnapshot(
+      qUser,
+      (snapshot) => {
+        const remoteOrders: any[] = [];
+        snapshot.forEach((docSnap) => {
+          remoteOrders.push({ id: docSnap.id, ...docSnap.data() });
+        });
+
+        let localOrders: any[] = [];
+        try {
+          const saved = localStorage.getItem("nangsal_guest_orders") || localStorage.getItem("slimhood_guest_orders");
+          if (saved) localOrders = JSON.parse(saved);
+        } catch (e) {}
+
+        const map = new Map<string, any>();
+        localOrders.forEach((o) => {
+          if (o && o.id) map.set(o.id, o);
+        });
+        remoteOrders.forEach((o) => {
+          if (o && o.id) map.set(o.id, { ...map.get(o.id), ...o });
+        });
+
+        const merged = Array.from(map.values()).sort(
+          (a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        );
+
+        setOrders(merged);
+        localStorage.setItem("nangsal_guest_orders", JSON.stringify(merged));
+      },
+      (err) => {
+        handleFirestoreError(err, OperationType.LIST, "orders");
+      }
+    );
+
+    return () => unsubscribeUserOrders();
+  }, [user?.uid, user?.email]);
 
   // Subscribe to Firebase Auth state changes
   useEffect(() => {
@@ -234,7 +326,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Also attempt server call if available
     try {
-      const token = localStorage.getItem("nangsal_admin_token") || "nangsal_secure_admin_token_v1";
+      const defaultAdminToken = import.meta.env.VITE_ADMIN_BEARER_TOKEN || "nangsal_secure_admin_token_v1";
+      const token = localStorage.getItem("nangsal_admin_token") || defaultAdminToken;
       await fetch(`/api/admin/products/${productId}`, {
         method: "POST",
         headers: {
@@ -432,18 +525,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       paymentScreenshotBase64: paymentScreenshotBase64 || null
     };
 
-    if (user) {
+    if (auth.currentUser && user) {
       newOrder.userId = user.uid;
+      newOrder.userEmail = user.email;
+
+      // Save order to Firestore database for persistent cross-device access
+      try {
+        await setDoc(doc(db, "orders", orderId), newOrder);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, `orders/${orderId}`);
+      }
     }
 
     // Save locally
-    try {
-      const guestOrders = JSON.parse(localStorage.getItem("nangsal_guest_orders") || localStorage.getItem("slimhood_guest_orders") || "[]");
-      guestOrders.push(newOrder);
-      localStorage.setItem("nangsal_guest_orders", JSON.stringify(guestOrders));
-    } catch (err) {
-      console.error("Failed to save order locally:", err);
-    }
+    setOrders((prev) => {
+      const updated = [newOrder, ...prev.filter((o) => o.id !== orderId)];
+      try {
+        localStorage.setItem("nangsal_guest_orders", JSON.stringify(updated));
+      } catch (err) {}
+      return updated;
+    });
 
     // Post to local server endpoint
     try {
@@ -544,6 +645,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         user,
         isLoadingUser,
         userProfile,
+        orders,
         loginWithGoogle,
         loginWithCustomToken,
         logout,

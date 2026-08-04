@@ -39,6 +39,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           key={`${product.id}-${currentImageIdx}`}
           src={currentImgSrc}
           alt={product.imageAlt || product.name}
+          loading="lazy"
+          decoding="async"
           style={product.imageStyle}
           onError={() => setImgError(true)}
           className={`w-full h-full ${

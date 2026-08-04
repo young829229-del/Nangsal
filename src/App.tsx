@@ -17,11 +17,12 @@ import { StudioSpecs } from "./components/StudioSpecs";
 import { BrandStatement } from "./components/BrandStatement";
 import { MoreThanClothesBanner } from "./components/MoreThanClothesBanner";
 import { Footer } from "./components/Footer";
-
 import { LoginView } from "./components/LoginView";
+import { SEO } from "./components/SEO";
+
 // Internal wrapper to access the useApp state hooks cleanly
 const AppContent: React.FC = () => {
-  const { activeTab, searchQuery, selectedCategory } = useApp();
+  const { activeTab, searchQuery, selectedCategory, selectedProductForModal } = useApp();
   const [heroHeight, setHeroHeight] = React.useState("100vh");
 
   useEffect(() => {
@@ -74,6 +75,16 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white text-black font-sans relative antialiased flex flex-col justify-between">
+      <SEO 
+        product={selectedProductForModal}
+        title={
+          activeTab === "TERMS" ? "Terms & Policies" :
+          activeTab === "ADMIN" ? "System Admin" :
+          activeTab === "LOGIN" ? "Login" :
+          searchQuery ? `Search: ${searchQuery}` :
+          activeTab === "SHOP" && selectedCategory !== "ALL" ? selectedCategory : undefined
+        }
+      />
       <div>
         {/* Header (Contains top announcement bar & main navbar) */}
         <Header />
